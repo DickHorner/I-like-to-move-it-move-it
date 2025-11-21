@@ -25,6 +25,7 @@
 
   <ItemGroup>
     <!-- System.Text.Json ist im Framework enthalten; explizites Update auf 8.x falls nötig -->
+    <PackageReference Include="System.Management" Version="10.0.0" />
     <PackageReference Include="System.Text.Json" Version="8.0.5" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.0" />
   </ItemGroup>
