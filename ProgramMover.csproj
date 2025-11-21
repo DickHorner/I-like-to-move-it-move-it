@@ -9,6 +9,8 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <AssemblyName>ProgramMover</AssemblyName>
     <RootNamespace>ProgramMover</RootNamespace>
+    <!-- Cross-Build auf Linux für Windows: -->
+    <EnableWindowsTargeting>true</EnableWindowsTargeting>
     
     <!-- Publishing Settings for Single File Executable -->
     <!-- Optional: suppress EOL warning if building legacy frameworks -->
