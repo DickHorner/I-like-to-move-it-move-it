@@ -2,7 +2,7 @@
 
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
-    <TargetFramework>net7.0-windows</TargetFramework>
+    <TargetFramework>net8.0-windows</TargetFramework>
     <UseWindowsForms>true</UseWindowsForms>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <Nullable>enable</Nullable>
@@ -11,6 +11,8 @@
     <RootNamespace>ProgramMover</RootNamespace>
     
     <!-- Publishing Settings for Single File Executable -->
+    <!-- Optional: suppress EOL warning if building legacy frameworks -->
+    <!-- <CheckEolTargetFramework>false</CheckEolTargetFramework> -->
     <PublishSingleFile>true</PublishSingleFile>
     <SelfContained>true</SelfContained>
     <RuntimeIdentifier>win-x64</RuntimeIdentifier>
@@ -20,8 +22,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="System.Text.Json" Version="7.0.3" />
-    <PackageReference Include="System.ServiceProcess.ServiceController" Version="7.0.1" />
+    <!-- System.Text.Json ist im Framework enthalten; explizites Update auf 8.x falls nötig -->
+    <PackageReference Include="System.Text.Json" Version="8.0.5" />
+    <PackageReference Include="System.ServiceProcess.ServiceController" Version="8.0.0" />
   </ItemGroup>
 
 </Project>
