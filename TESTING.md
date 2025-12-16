@@ -99,11 +99,13 @@ dotnet restore ProgramMover.csproj
 dotnet publish ProgramMover.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
 ```
 
-### Option 2: Trimming deaktivieren
-Wenn Reflection-basierte Features fehlen:
+### Option 2: Alternative Build Settings
+For testing alternative configurations:
 ```bash
-dotnet publish ProgramMover.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=false
+dotnet publish ProgramMover.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
 ```
+
+Note: Trimming is already disabled in the project file for Windows Forms compatibility.
 
 ### Option 3: Größe reduzieren (nach Tests)
 ```bash
