@@ -10,7 +10,7 @@ rmdir /s /q obj 2>nul
 echo.
 echo Building Release version (explicit project)...
 dotnet restore ProgramMover.csproj || goto :error
-dotnet publish ProgramMover.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -p:EnableCompressionInSingleFile=true || goto :error
+dotnet publish ProgramMover.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true || goto :error
 
 echo.
 echo Build complete!

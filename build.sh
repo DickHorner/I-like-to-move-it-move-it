@@ -11,7 +11,7 @@ rm -rf obj
 echo ""
 echo "Building Release version (explicit project)..."
 dotnet restore ProgramMover.csproj || { echo "restore failed"; exit 1; }
-dotnet publish ProgramMover.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true -p:EnableCompressionInSingleFile=true || { echo "publish failed"; exit 1; }
+dotnet publish ProgramMover.csproj -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:EnableCompressionInSingleFile=true || { echo "publish failed"; exit 1; }
 
 echo ""
 echo "Build complete!"

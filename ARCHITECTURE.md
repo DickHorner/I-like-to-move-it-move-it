@@ -476,9 +476,10 @@ if (app.CustomCondition)
 dotnet publish -c Release -r win-x64 \
   --self-contained true \
   -p:PublishSingleFile=true \
-  -p:PublishTrimmed=true \
   -p:EnableCompressionInSingleFile=true
 ```
+
+Note: Trimming is disabled for Windows Forms compatibility.
 
 ### Output
 ```

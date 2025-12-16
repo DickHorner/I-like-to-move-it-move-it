@@ -60,8 +60,10 @@ Das Programm ist in folgende Module (Agenten) unterteilt:
 ## Build
 
 ```bash
-dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true -p:PublishTrimmed=true
+dotnet publish -c Release -r win-x64 --self-contained true -p:PublishSingleFile=true
 ```
+
+Note: Trimming is disabled for Windows Forms compatibility.
 
 ## Lizenz
 
