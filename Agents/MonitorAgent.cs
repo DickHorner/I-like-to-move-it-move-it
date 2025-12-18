@@ -205,7 +205,7 @@ public class MonitorAgent
             return false;
         }
 
-        await Task.CompletedTask;
+
     }
 
     /// <summary>
