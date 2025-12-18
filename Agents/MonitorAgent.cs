@@ -204,8 +204,6 @@ public class MonitorAgent
             Log(LogLevel.Error, "Monitor", $"Error checking process start capability: {ex.Message}", app.Id);
             return false;
         }
-
-        await Task.CompletedTask;
     }
 
     /// <summary>

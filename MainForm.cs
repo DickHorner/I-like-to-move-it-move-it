@@ -43,16 +43,16 @@ public partial class MainForm : Form
 
     private void SetupUI()
     {
-        // Content panel
-        pnlContent.Dock = DockStyle.Fill;
-        pnlContent.Padding = new Padding(20);
-        Controls.Add(pnlContent);
-
-        // Button panel
+        // Button panel - Add FIRST so it stays on top when content panel fills
         pnlButtons.Dock = DockStyle.Bottom;
         pnlButtons.Height = 60;
         pnlButtons.Padding = new Padding(10);
         Controls.Add(pnlButtons);
+
+        // Content panel - Add SECOND so it fills remaining space
+        pnlContent.Dock = DockStyle.Fill;
+        pnlContent.Padding = new Padding(20);
+        Controls.Add(pnlContent);
 
         // Status label
         lblStatus.Dock = DockStyle.Fill;
