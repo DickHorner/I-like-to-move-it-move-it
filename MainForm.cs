@@ -37,8 +37,8 @@ public partial class MainForm : Form
         Size = new Size(900, 700);
         StartPosition = FormStartPosition.CenterScreen;
         MinimumSize = new Size(800, 600);
-        FormBorderStyle = FormBorderStyle.FixedDialog;
-        MaximizeBox = false;
+        FormBorderStyle = FormBorderStyle.Sizable;
+        MaximizeBox = true;
     }
 
     private void SetupUI()
