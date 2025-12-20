@@ -192,7 +192,8 @@ public partial class MainForm : Form
             Text = "Willkommen beim ProgramMover!",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20)
+            Location = new Point(20, 20),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left
         };
         pnlContent.Controls.Add(lblTitle);
 
@@ -202,7 +203,8 @@ public partial class MainForm : Form
             Font = new Font(Font.FontFamily, 12, FontStyle.Bold),
             ForeColor = Color.Red,
             AutoSize = true,
-            Location = new Point(20, 80)
+            Location = new Point(20, 80),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left
         };
         pnlContent.Controls.Add(lblWarning);
 
@@ -270,7 +272,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             Text = "Sicherheitsprüfungen",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20)
+            Location = new Point(20, 20),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left
         };
         pnlContent.Controls.Add(lblTitle);
 
@@ -356,7 +359,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             Text = "System-Scan",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20)
+            Location = new Point(20, 20),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left
         };
         pnlContent.Controls.Add(lblTitle);
 
@@ -412,7 +416,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             Text = "Analyse",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20)
+            Location = new Point(20, 20),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left
         };
         pnlContent.Controls.Add(lblTitle);
 
@@ -471,7 +476,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             Text = "Programmauswahl",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20)
+            Location = new Point(20, 20),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left
         };
         pnlContent.Controls.Add(lblTitle);
 
@@ -565,7 +571,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             Text = "Migrationsplan",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20)
+            Location = new Point(20, 20),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left
         };
         pnlContent.Controls.Add(lblTitle);
 
@@ -620,7 +627,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             Text = "DryRun - Simulation",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20)
+            Location = new Point(20, 20),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left
         };
         pnlContent.Controls.Add(lblTitle);
 
@@ -670,6 +678,9 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
 
                 MessageBox.Show($"DryRun erfolgreich abgeschlossen!\n\n{result.SuccessfulSteps.Count} Schritte simuliert.\n\nSie können jetzt die echte Migration starten.",
                     "DryRun abgeschlossen", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                
+                btnNext.Click -= BtnNext_Click;
+                btnNext.Click += (s, e) => ShowExecution();
             });
         });
     }
@@ -699,7 +710,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             Text = "Migration läuft...",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20)
+            Location = new Point(20, 20),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left
         };
         pnlContent.Controls.Add(lblTitle);
 
@@ -775,7 +787,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             Text = "Überwachung",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20)
+            Location = new Point(20, 20),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left
         };
         pnlContent.Controls.Add(lblTitle);
 
@@ -844,7 +857,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             Text = "Migration abgeschlossen!",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20)
+            Location = new Point(20, 20),
+            Anchor = AnchorStyles.Top | AnchorStyles.Left
         };
         pnlContent.Controls.Add(lblTitle);
 
