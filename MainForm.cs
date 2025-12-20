@@ -172,6 +172,16 @@ public partial class MainForm : Form
         pnlContent.Controls.Add(progressBar);
     }
 
+    private int FilterAppsOnTargetDrive()
+    {
+        var initialCount = _scannedApps.Count;
+        _scannedApps = _scannedApps
+            .Where(a => string.IsNullOrWhiteSpace(a.InstallLocation) ||
+                        !a.InstallLocation.TrimStart().StartsWith(@"D:\", StringComparison.OrdinalIgnoreCase))
+            .ToList();
+        return initialCount - _scannedApps.Count;
+    }
+
     private void ShowWelcome()
     {
         _currentStep = WizardStep.Welcome;
@@ -203,6 +213,7 @@ public partial class MainForm : Form
             ScrollBars = ScrollBars.Vertical,
             Location = new Point(20, 120),
             Size = new Size(820, 300),
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
             Text = @"Dieses Tool verschiebt installierte Programme von C:\ nach D:\ unter Verwendung von Junctions (symbolischen Links).
 
 WICHTIG VOR DEM START:
@@ -236,6 +247,7 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             Text = "Ich habe ein Backup erstellt und die Hinweise gelesen",
             Location = new Point(20, 440),
             Size = new Size(400, 30),
+            Anchor = AnchorStyles.Bottom | AnchorStyles.Left,
             Font = new Font(Font.FontFamily, 10, FontStyle.Bold)
         };
         chkBackup.CheckedChanged += (s, e) => btnNext.Enabled = chkBackup.Checked;
@@ -268,7 +280,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             ReadOnly = true,
             ScrollBars = ScrollBars.Vertical,
             Location = new Point(20, 80),
-            Size = new Size(820, 450)
+            Size = new Size(820, 450),
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
         pnlContent.Controls.Add(txtResults);
 
@@ -353,7 +366,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             ReadOnly = true,
             ScrollBars = ScrollBars.Vertical,
             Location = new Point(20, 80),
-            Size = new Size(820, 450)
+            Size = new Size(820, 450),
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
         pnlContent.Controls.Add(txtLog);
 
@@ -367,15 +381,20 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             
             Invoke(() =>
             {
+                var skipped = FilterAppsOnTargetDrive();
+
                 var logs = _orchestrator.GetAllLogs()
                     .Where(l => l.Category == "Scanner")
                     .Select(l => l.ToString());
-                
-                txtLog.Text = string.Join(Environment.NewLine, logs);
-                
+                var logText = string.Join(Environment.NewLine, logs);
+                if (skipped > 0)
+                    logText += $"{Environment.NewLine}{Environment.NewLine}Hinweis: {skipped} Programme bereits auf D:\\ erkannt und übersprungen.";
+
+                txtLog.Text = logText;
+
                 progressBar.Style = ProgressBarStyle.Continuous;
                 progressBar.Visible = false;
-                lblStatus.Text = $"Scan abgeschlossen. {_scannedApps.Count} Programme gefunden.";
+                lblStatus.Text = $"Scan abgeschlossen. {_scannedApps.Count} Programme gefunden." + (skipped > 0 ? $" {skipped} bereits auf D: übersprungen." : string.Empty);
                 btnNext.Enabled = true;
             });
         });
@@ -403,7 +422,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             ReadOnly = true,
             ScrollBars = ScrollBars.Vertical,
             Location = new Point(20, 80),
-            Size = new Size(820, 450)
+            Size = new Size(820, 450),
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
         pnlContent.Controls.Add(txtLog);
 
@@ -464,7 +484,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
             MultiSelect = true,
             ReadOnly = false,
-            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill
+            AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
 
         dataGridView.Columns.Add(new DataGridViewCheckBoxColumn { Name = "Select", HeaderText = "Auswählen", Width = 80 });
@@ -494,7 +515,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
         {
             Text = "Alle 'MoveableAuto' auswählen",
             Location = new Point(20, 490),
-            Size = new Size(200, 30)
+            Size = new Size(200, 30),
+            Anchor = AnchorStyles.Bottom | AnchorStyles.Left
         };
         btnSelectAll.Click += (s, e) =>
         {
@@ -558,7 +580,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             ReadOnly = true,
             ScrollBars = ScrollBars.Vertical,
             Location = new Point(20, 80),
-            Size = new Size(820, 450)
+            Size = new Size(820, 450),
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
 
         var sb = new System.Text.StringBuilder();
@@ -607,7 +630,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             ReadOnly = true,
             ScrollBars = ScrollBars.Vertical,
             Location = new Point(20, 80),
-            Size = new Size(820, 450)
+            Size = new Size(820, 450),
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
         pnlContent.Controls.Add(txtLog);
 
@@ -685,7 +709,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             ReadOnly = true,
             ScrollBars = ScrollBars.Vertical,
             Location = new Point(20, 80),
-            Size = new Size(820, 450)
+            Size = new Size(820, 450),
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
         pnlContent.Controls.Add(txtLog);
 
@@ -760,7 +785,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             ReadOnly = true,
             ScrollBars = ScrollBars.Vertical,
             Location = new Point(20, 80),
-            Size = new Size(820, 450)
+            Size = new Size(820, 450),
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
         pnlContent.Controls.Add(txtStatus);
 
@@ -829,6 +855,7 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             ScrollBars = ScrollBars.Vertical,
             Location = new Point(20, 80),
             Size = new Size(820, 400),
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
             Text = @"Die Migration wurde erfolgreich abgeschlossen!
 
 NÄCHSTE SCHRITTE:
@@ -861,7 +888,8 @@ Vielen Dank für die Nutzung von ProgramMover!"
         {
             Text = "Cleanup: .old-Verzeichnisse anzeigen",
             Location = new Point(20, 500),
-            Size = new Size(250, 30)
+            Size = new Size(250, 30),
+            Anchor = AnchorStyles.Bottom | AnchorStyles.Left
         };
         btnCleanup.Click += async (s, e) =>
         {
