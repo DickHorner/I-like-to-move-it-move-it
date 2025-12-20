@@ -34,6 +34,7 @@ public class ExecutorAgent
 
         var totalSteps = plan.Steps.Count;
         var completedSteps = 0;
+        var failedApps = new Dictionary<string, string>();
 
         foreach (var step in plan.Steps.OrderBy(s => s.Order))
         {
@@ -76,15 +77,28 @@ public class ExecutorAgent
                 
                 Log(LogLevel.Error, "Executor", $"Step failed: {step.Description} - {ex.Message}", step.AppId, step.Id, exception: ex.ToString());
 
+                // Track which app failed
+                if (!failedApps.ContainsKey(step.AppId))
+                {
+                    failedApps[step.AppId] = ex.Message;
+                }
+
                 // Decide whether to continue or abort
                 if (step.StepType == StepType.RobocopyFiles || 
                     step.StepType == StepType.VerifyFiles ||
                     step.StepType == StepType.CreateJunction)
                 {
-                    // Critical failures - abort
-                    result.Success = false;
-                    result.Message = $"Critical failure at step: {step.Description}";
-                    break;
+                    // Critical failures - mark app as failed but continue with other apps
+                    Log(LogLevel.Error, "Executor", $"Critical failure for app {step.AppId}, skipping remaining steps for this app", step.AppId, step.Id);
+                    
+                    // Skip remaining steps for this app
+                    var appSteps = plan.Steps.Where(s => s.AppId == step.AppId && s.Order > step.Order).ToList();
+                    foreach (var skipStep in appSteps)
+                    {
+                        skipStep.Status = StepStatus.Skipped;
+                        skipStep.ErrorMessage = $"Skipped due to previous failure: {ex.Message}";
+                        result.FailedSteps.Add(skipStep);
+                    }
                 }
                 else
                 {
@@ -97,12 +111,17 @@ public class ExecutorAgent
         result.EndTime = DateTime.Now;
         result.Duration = result.EndTime - result.StartTime;
 
-        if (result.FailedSteps.Any() && !result.Success.HasValue)
+        if (result.FailedSteps.Any() && result.SuccessfulSteps.Any())
         {
             result.Success = false;
-            result.Message = $"Completed with {result.FailedSteps.Count} failed steps";
+            result.Message = $"Partial success: {result.SuccessfulSteps.Count}/{totalSteps} steps completed. Failed apps: {string.Join(", ", failedApps.Keys)}";
         }
-        else if (!result.Success.HasValue)
+        else if (result.FailedSteps.Any())
+        {
+            result.Success = false;
+            result.Message = $"All {result.FailedSteps.Count} steps failed. Failed apps: {string.Join(", ", failedApps.Keys)}";
+        }
+        else
         {
             result.Success = true;
             result.Message = $"All {completedSteps} steps completed successfully";

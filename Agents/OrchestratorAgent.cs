@@ -126,23 +126,27 @@ public class OrchestratorAgent
             
             if (!result.Success.GetValueOrDefault())
             {
-                Log(LogLevel.Error, "Orchestrator", $"Execution failed: {result.Message}");
+                Log(LogLevel.Error, "Orchestrator", $"Execution had failures: {result.Message}");
                 
-                // Trigger rollback
-                if (!plan.IsDryRun)
+                // Only rollback if it's not a DryRun and we have failed steps for specific apps
+                if (!plan.IsDryRun && result.FailedSteps.Any())
                 {
-                    Log(LogLevel.Warning, "Orchestrator", "Initiating automatic rollback...");
-                    var rollbackResult = await RollbackMigration(plan, result.SuccessfulSteps);
+                    Log(LogLevel.Warning, "Orchestrator", "Rolling back failed apps...");
+                    var failedAppIds = result.FailedSteps.Select(s => s.AppId).Distinct().ToList();
+                    var appStepsToRollback = result.SuccessfulSteps.Where(s => failedAppIds.Contains(s.AppId)).ToList();
                     
-                    if (rollbackResult.Success)
+                    if (appStepsToRollback.Any())
                     {
-                        Log(LogLevel.Info, "Orchestrator", "Rollback completed successfully");
-                        Environment.ExitCode = ExitCodes.RollbackSuccess;
-                    }
-                    else
-                    {
-                        Log(LogLevel.Error, "Orchestrator", "Rollback failed - manual intervention required");
-                        Environment.ExitCode = ExitCodes.RollbackFailed;
+                        var rollbackResult = await RollbackMigration(plan, appStepsToRollback);
+                        
+                        if (rollbackResult.Success)
+                        {
+                            Log(LogLevel.Info, "Orchestrator", "Rollback completed for failed apps");
+                        }
+                        else
+                        {
+                            Log(LogLevel.Error, "Orchestrator", "Rollback had issues - manual intervention may be required");
+                        }
                     }
                 }
             }

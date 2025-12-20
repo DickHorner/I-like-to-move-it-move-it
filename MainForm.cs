@@ -168,8 +168,34 @@ public partial class MainForm : Form
     private void ClearContent()
     {
         pnlContent.Controls.Clear();
+        pnlContent.AutoScroll = true;
         progressBar.Visible = false;
         pnlContent.Controls.Add(progressBar);
+    }
+
+    private void AddScalingTextArea(string text, int top, int? fixedBottom = null)
+    {
+        var txtLog = new TextBox
+        {
+            Multiline = true,
+            ReadOnly = true,
+            ScrollBars = ScrollBars.Vertical,
+            Location = new Point(20, top),
+            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
+            Text = text
+        };
+        
+        if (fixedBottom.HasValue)
+        {
+            txtLog.Height = pnlContent.Height - top - fixedBottom.Value - 20;
+        }
+        else
+        {
+            txtLog.Height = Math.Max(150, pnlContent.Height - top - 40);
+        }
+        
+        pnlContent.Controls.Add(txtLog);
+        pnlContent.Controls.SetChildIndex(txtLog, pnlContent.Controls.Count - 2); // Keep progress bar on top
     }
 
     private int FilterAppsOnTargetDrive()
@@ -758,6 +784,11 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
                 btnNext.Enabled = true;
                 btnCancel.Enabled = true;
 
+                var logs = _orchestrator.GetAllLogs()
+                    .Where(l => l.Category == "Executor")
+                    .Select(l => l.ToString());
+                txtLog.Text = string.Join(Environment.NewLine, logs);
+
                 if (result.Success.GetValueOrDefault())
                 {
                     lblStatus.Text = $"Migration erfolgreich abgeschlossen!";
@@ -766,9 +797,12 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
                 }
                 else
                 {
-                    lblStatus.Text = $"Migration fehlgeschlagen: {result.Message}";
-                    MessageBox.Show($"Migration fehlgeschlagen!\n\n{result.Message}\n\nRollback wurde ausgeführt.",
-                        "Fehler", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    lblStatus.Text = $"Migration mit Fehlern abgeschlossen: {result.SuccessfulSteps.Count} erfolgreich, {result.FailedSteps.Count} fehlgeschlagen";
+                    var failureDetail = result.FailedSteps.Any() 
+                        ? $"\n\nFehlerhafte Schritte:\n{string.Join("\n", result.FailedSteps.Take(10).Select(s => $"• {s.AppName}: {s.Description} - {s.ErrorMessage}"))}"
+                        : "";
+                    MessageBox.Show($"{result.Message}\n\nErfolgreich: {result.SuccessfulSteps.Count}\nFehlgeschlagen: {result.FailedSteps.Count}\nDauer: {result.Duration:mm\\:ss}{failureDetail}",
+                        "Migration abgeschlossen (mit Fehlern)", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             });
         });
