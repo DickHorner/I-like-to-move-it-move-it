@@ -54,33 +54,53 @@ public partial class MainForm : Form
         pnlContent.Padding = new Padding(20);
         Controls.Add(pnlContent);
 
+        var buttonsLayout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 2,
+            RowCount = 1
+        };
+        buttonsLayout.ColumnStyles.Add(new ColumnStyle(SizeType.Percent, 100));
+        buttonsLayout.ColumnStyles.Add(new ColumnStyle(SizeType.AutoSize));
+        pnlButtons.Controls.Add(buttonsLayout);
+
         // Status label
         lblStatus.Dock = DockStyle.Fill;
         lblStatus.TextAlign = ContentAlignment.MiddleLeft;
-        pnlButtons.Controls.Add(lblStatus);
+        buttonsLayout.Controls.Add(lblStatus, 0, 0);
+
+        // Button row uses flow layout to stay visible on resize
+        var buttonFlow = new FlowLayoutPanel
+        {
+            FlowDirection = FlowDirection.RightToLeft,
+            Dock = DockStyle.Fill,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            WrapContents = false,
+            Padding = new Padding(0),
+            Margin = new Padding(0)
+        };
+        buttonsLayout.Controls.Add(buttonFlow, 1, 0);
 
         // Buttons
         btnCancel.Text = "Abbrechen";
         btnCancel.Size = new Size(100, 35);
-        btnCancel.Location = new Point(pnlButtons.Width - 120, 12);
-        btnCancel.Anchor = AnchorStyles.Right | AnchorStyles.Top;
+        btnCancel.Margin = new Padding(5, 0, 0, 0);
         btnCancel.Click += (s, e) => Close();
-        pnlButtons.Controls.Add(btnCancel);
+        buttonFlow.Controls.Add(btnCancel);
 
         btnNext.Text = "Weiter >";
         btnNext.Size = new Size(100, 35);
-        btnNext.Location = new Point(btnCancel.Left - 110, 12);
-        btnNext.Anchor = AnchorStyles.Right | AnchorStyles.Top;
+        btnNext.Margin = new Padding(5, 0, 0, 0);
         btnNext.Click += BtnNext_Click;
-        pnlButtons.Controls.Add(btnNext);
+        buttonFlow.Controls.Add(btnNext);
 
         btnBack.Text = "< Zurück";
         btnBack.Size = new Size(100, 35);
-        btnBack.Location = new Point(btnNext.Left - 110, 12);
-        btnBack.Anchor = AnchorStyles.Right | AnchorStyles.Top;
+        btnBack.Margin = new Padding(5, 0, 0, 0);
         btnBack.Click += BtnBack_Click;
         btnBack.Enabled = false;
-        pnlButtons.Controls.Add(btnBack);
+        buttonFlow.Controls.Add(btnBack);
 
         // Progress bar
         progressBar.Dock = DockStyle.Bottom;
