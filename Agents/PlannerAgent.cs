@@ -112,18 +112,40 @@ public class PlannerAgent
             });
         }
 
-        // Step 4: Robocopy Files
+        // Step 4: Robocopy Files (Program Files)
         steps.Add(new MigrationStep
         {
             AppId = app.Id,
             AppName = app.DisplayName,
             StepType = StepType.RobocopyFiles,
-            Description = $"Copy files from {app.InstallLocation} to {targetPath}",
+            Description = $"Copy program files from {app.InstallLocation} to {targetPath}",
             SourcePath = app.InstallLocation,
             TargetPath = targetPath,
             Order = stepOrder++,
             TimeoutSeconds = Math.Max(300, (int)(app.TotalSizeBytes / (1024 * 1024 * 10))) // 10 MB/s estimate
         });
+
+        // Step 4b: Copy AppData if applicable
+        var appDataPaths = FindAppDataFolders(app);
+        var appDataTargetBase = Path.Combine(_targetDrive + "\\", "UserData", SanitizePathForAppData(app.DisplayName));
+        
+        foreach (var appDataPath in appDataPaths)
+        {
+            var subPath = Path.GetFileName(appDataPath);
+            var appDataTarget = Path.Combine(appDataTargetBase, subPath);
+            
+            steps.Add(new MigrationStep
+            {
+                AppId = app.Id,
+                AppName = app.DisplayName,
+                StepType = StepType.RobocopyFiles,
+                Description = $"Copy user data from {appDataPath}",
+                SourcePath = appDataPath,
+                TargetPath = appDataTarget,
+                Order = stepOrder++,
+                TimeoutSeconds = 120
+            });
+        }
 
         // Step 5: Verify Files
         steps.Add(new MigrationStep
@@ -227,6 +249,95 @@ public class PlannerAgent
 
         // Construct target path
         return Path.Combine(_targetDrive + "\\", path);
+    }
+
+    /// <summary>
+    /// Finds AppData folders related to this application
+    /// </summary>
+    private List<string> FindAppDataFolders(AppEntry app)
+    {
+        var result = new List<string>();
+        
+        try
+        {
+            var appDataLocal = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var appDataRoaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+            
+            // Common folder name patterns
+            var appNamePatterns = new[] 
+            { 
+                app.DisplayName,
+                app.DisplayName.Replace(" ", ""),
+                SanitizePathForAppData(app.DisplayName)
+            };
+
+            // Search in AppData\Local
+            if (Directory.Exists(appDataLocal))
+            {
+                foreach (var pattern in appNamePatterns)
+                {
+                    var path = Path.Combine(appDataLocal, pattern);
+                    if (Directory.Exists(path) && result.All(r => !r.Equals(path, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        result.Add(path);
+                        Log(LogLevel.Info, "Planner", $"Found AppData (Local) for {app.DisplayName}: {path}", app.Id);
+                        break;
+                    }
+                }
+            }
+
+            // Search in AppData\Roaming
+            if (Directory.Exists(appDataRoaming))
+            {
+                foreach (var pattern in appNamePatterns)
+                {
+                    var path = Path.Combine(appDataRoaming, pattern);
+                    if (Directory.Exists(path) && result.All(r => !r.Equals(path, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        result.Add(path);
+                        Log(LogLevel.Info, "Planner", $"Found AppData (Roaming) for {app.DisplayName}: {path}", app.Id);
+                        break;
+                    }
+                }
+            }
+
+            // Search in ProgramData
+            if (Directory.Exists(programData))
+            {
+                foreach (var pattern in appNamePatterns)
+                {
+                    var path = Path.Combine(programData, pattern);
+                    if (Directory.Exists(path) && result.All(r => !r.Equals(path, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        result.Add(path);
+                        Log(LogLevel.Info, "Planner", $"Found ProgramData for {app.DisplayName}: {path}", app.Id);
+                        break;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log(LogLevel.Warning, "Planner", $"Error searching AppData folders: {ex.Message}", app.Id);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Sanitizes application name for use in folder paths
+    /// </summary>
+    private string SanitizePathForAppData(string appName)
+    {
+        // Remove invalid path characters
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var sanitized = appName;
+        foreach (var ch in invalidChars)
+        {
+            sanitized = sanitized.Replace(ch.ToString(), "");
+        }
+        return sanitized.Trim();
     }
 
     private void Log(LogLevel level, string category, string message, string? appId = null)

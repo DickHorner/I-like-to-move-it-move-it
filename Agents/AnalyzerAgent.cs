@@ -158,6 +158,14 @@ public class AnalyzerAgent
             Log(LogLevel.Warning, "Analyzer", $"{app.DisplayName} contains problematic keywords", app.Id);
         }
 
+        // Check for AppData folders
+        var appDataFolders = FindAppDataFolders(app);
+        if (appDataFolders.Count > 0)
+        {
+            score += 5; // Slight bonus - AppData can be moved too, reducing disk fragmentation
+            Log(LogLevel.Debug, "Analyzer", $"{app.DisplayName} has {appDataFolders.Count} AppData folder(s)", app.Id);
+        }
+
         // Assign final score
         app.Score = Math.Max(0, Math.Min(100, score));
 
@@ -192,6 +200,90 @@ public class AnalyzerAgent
         }
 
         Log(LogLevel.Debug, "Analyzer", $"{app.DisplayName}: Score={app.Score}, Category={app.Category}", app.Id);
+    }
+
+    /// <summary>
+    /// Finds AppData folders related to this application
+    /// </summary>
+    private List<string> FindAppDataFolders(AppEntry app)
+    {
+        var result = new List<string>();
+        
+        try
+        {
+            var appDataLocal = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+            var appDataRoaming = Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData);
+            var programData = Environment.GetFolderPath(Environment.SpecialFolder.CommonApplicationData);
+            
+            var appNamePatterns = new[] 
+            { 
+                app.DisplayName,
+                app.DisplayName.Replace(" ", ""),
+                SanitizePathForAppData(app.DisplayName)
+            };
+
+            // Check AppData\Local
+            if (Directory.Exists(appDataLocal))
+            {
+                foreach (var pattern in appNamePatterns)
+                {
+                    var path = Path.Combine(appDataLocal, pattern);
+                    if (Directory.Exists(path))
+                    {
+                        result.Add(path);
+                        break;
+                    }
+                }
+            }
+
+            // Check AppData\Roaming
+            if (Directory.Exists(appDataRoaming))
+            {
+                foreach (var pattern in appNamePatterns)
+                {
+                    var path = Path.Combine(appDataRoaming, pattern);
+                    if (Directory.Exists(path) && result.All(r => !r.Equals(path, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        result.Add(path);
+                        break;
+                    }
+                }
+            }
+
+            // Check ProgramData
+            if (Directory.Exists(programData))
+            {
+                foreach (var pattern in appNamePatterns)
+                {
+                    var path = Path.Combine(programData, pattern);
+                    if (Directory.Exists(path) && result.All(r => !r.Equals(path, StringComparison.OrdinalIgnoreCase)))
+                    {
+                        result.Add(path);
+                        break;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Log(LogLevel.Warning, "Analyzer", $"Error searching AppData: {ex.Message}", app.Id);
+        }
+
+        return result;
+    }
+
+    /// <summary>
+    /// Sanitizes application name for path use
+    /// </summary>
+    private string SanitizePathForAppData(string appName)
+    {
+        var invalidChars = Path.GetInvalidFileNameChars();
+        var sanitized = appName;
+        foreach (var ch in invalidChars)
+        {
+            sanitized = sanitized.Replace(ch.ToString(), "");
+        }
+        return sanitized.Trim();
     }
 
     private void Log(LogLevel level, string category, string message, string? appId = null)
