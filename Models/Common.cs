@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.Linq;
 
 namespace ProgramMover.Models;
 
@@ -49,6 +50,27 @@ public enum LogLevel
     Warning,
     Error,
     Critical
+}
+
+public static class LoggingOptions
+{
+    private static volatile bool _enableDebugLogs;
+
+    public static bool EnableDebugLogs
+    {
+        get => _enableDebugLogs;
+        set => _enableDebugLogs = value;
+    }
+}
+
+public class RecoveryReport
+{
+    public List<string> RestoredPaths { get; set; } = new();
+    public List<string> HealthyJunctions { get; set; } = new();
+    public List<string> NeedsManualReview { get; set; } = new();
+    public List<string> Errors { get; set; } = new();
+
+    public bool HasFindings => RestoredPaths.Any() || NeedsManualReview.Any() || Errors.Any();
 }
 
 /// <summary>

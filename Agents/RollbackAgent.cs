@@ -1,5 +1,7 @@
 using ProgramMover.Models;
 using System.ServiceProcess;
+using System.Linq;
+using System.IO;
 
 namespace ProgramMover.Agents;
 
@@ -11,6 +13,68 @@ public class RollbackAgent
     private readonly List<ExecutionLog> _logs = new();
 
     public List<ExecutionLog> GetLogs() => _logs;
+
+    public RecoveryReport InspectAndRecoverPreviousRuns()
+    {
+        var report = new RecoveryReport();
+        var baseDirectories = new[]
+        {
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles),
+            Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)
+        }
+        .Where(d => !string.IsNullOrWhiteSpace(d))
+        .Distinct(StringComparer.OrdinalIgnoreCase)
+        .ToList();
+
+        foreach (var baseDir in baseDirectories.Where(d => Directory.Exists(d)))
+        {
+            var oldDirectories = Directory.GetDirectories(baseDir, "*.old", SearchOption.TopDirectoryOnly);
+            
+            foreach (var oldDir in oldDirectories)
+            {
+                var originalPath = oldDir[..^4];
+
+                try
+                {
+                    if (!Directory.Exists(originalPath))
+                    {
+                        Directory.Move(oldDir, originalPath);
+                        report.RestoredPaths.Add(originalPath);
+                        Log(LogLevel.Info, "Rollback", $"Recovered previous migration attempt by restoring {originalPath}");
+                        continue;
+                    }
+
+                    // Check if the path is a reparse point (junction, symbolic link, or mount point)
+                    // Note: File.GetAttributes works for both files and directories.
+                    // This treats any directory reparse point as a "junction" for rollback purposes,
+                    // which may include symbolic links, mount points, or traditional junctions.
+                    // For this application's purpose (detecting migrated directories), all reparse point
+                    // types indicate a successfully migrated installation and are considered "healthy".
+                    var attributes = File.GetAttributes(originalPath);
+                    var isJunction = (attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint;
+
+                    if (isJunction)
+                    {
+                        report.HealthyJunctions.Add(originalPath);
+                        Log(LogLevel.Debug, "Rollback", $"Detected existing junction paired with {oldDir}");
+                    }
+                    else
+                    {
+                        report.NeedsManualReview.Add(originalPath);
+                        Log(LogLevel.Warning, "Rollback", $"Found .old folder without junction at {originalPath} - manual review recommended");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    report.Errors.Add($"{originalPath}: {ex.Message}");
+                    Log(LogLevel.Error, "Rollback", $"Error inspecting {oldDir}: {ex.Message}", exception: ex.ToString());
+                }
+            }
+        }
+
+        Log(LogLevel.Info, "Rollback", $"Previous run scan complete. Restored: {report.RestoredPaths.Count}, Manual review: {report.NeedsManualReview.Count}");
+        return report;
+    }
 
     /// <summary>
     /// Rolls back a migration plan
@@ -245,6 +309,9 @@ public class RollbackAgent
 
     private void Log(LogLevel level, string category, string message, string? appId = null, string? stepId = null, string? exception = null)
     {
+        if (!LoggingOptions.EnableDebugLogs && (level == LogLevel.Debug || level == LogLevel.Trace))
+            return;
+
         _logs.Add(new ExecutionLog
         {
             Level = level,

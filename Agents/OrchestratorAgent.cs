@@ -1,5 +1,6 @@
 using ProgramMover.Models;
 using System.Text.Json;
+using System.Linq;
 
 namespace ProgramMover.Agents;
 
@@ -52,9 +53,27 @@ public class OrchestratorAgent
     public SecurityCheckResult PerformSecurityChecks(List<AppEntry>? apps = null)
     {
         Log(LogLevel.Info, "Orchestrator", "Performing security checks...");
-        
+
         var checkApps = apps ?? new List<AppEntry>();
         return _security.PerformSecurityChecks(_config.TargetDrive, checkApps, _config.CreateRestorePoint);
+    }
+
+    public RecoveryReport DetectAndFixPreviousRuns()
+    {
+        Log(LogLevel.Info, "Orchestrator", "Scanning for remnants of earlier runs...");
+
+        var report = _rollback.InspectAndRecoverPreviousRuns();
+
+        if (report.RestoredPaths.Any())
+            Log(LogLevel.Warning, "Orchestrator", $"Recovered {report.RestoredPaths.Count} installations from previous attempts.");
+
+        if (report.NeedsManualReview.Any())
+            Log(LogLevel.Warning, "Orchestrator", $"{report.NeedsManualReview.Count} folders need manual review after prior runs.");
+
+        if (report.Errors.Any())
+            Log(LogLevel.Error, "Orchestrator", $"Errors while checking previous runs: {string.Join(", ", report.Errors.Take(3))}");
+
+        return report;
     }
 
     /// <summary>
@@ -364,6 +383,9 @@ public class OrchestratorAgent
 
     private void Log(LogLevel level, string category, string message, string? exception = null)
     {
+        if (!LoggingOptions.EnableDebugLogs && (level == LogLevel.Debug || level == LogLevel.Trace))
+            return;
+
         _logs.Add(new ExecutionLog
         {
             Level = level,

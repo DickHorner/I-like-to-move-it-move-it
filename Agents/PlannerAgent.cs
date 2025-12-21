@@ -342,6 +342,9 @@ public class PlannerAgent
 
     private void Log(LogLevel level, string category, string message, string? appId = null)
     {
+        if (!LoggingOptions.EnableDebugLogs && (level == LogLevel.Debug || level == LogLevel.Trace))
+            return;
+
         _logs.Add(new ExecutionLog
         {
             Level = level,

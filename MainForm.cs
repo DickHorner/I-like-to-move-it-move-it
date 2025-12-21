@@ -1,5 +1,6 @@
 using ProgramMover.Agents;
 using ProgramMover.Models;
+using System.Linq;
 
 namespace ProgramMover;
 
@@ -13,6 +14,8 @@ public partial class MainForm : Form
     private List<AppEntry> _selectedApps = new();
     private MigrationPlan? _currentPlan;
     private WizardStep _currentStep = WizardStep.Welcome;
+    private DataGridView? _selectionGrid;
+    private EventHandler? _currentNextHandler;
 
     // UI Controls
     private Panel pnlContent = new();
@@ -22,6 +25,70 @@ public partial class MainForm : Form
     private Button btnCancel = new();
     private ProgressBar progressBar = new();
     private Label lblStatus = new();
+
+    private TableLayoutPanel CreateStandardLayout(bool includeFooter = false)
+    {
+        var layout = new TableLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            ColumnCount = 1,
+            RowCount = includeFooter ? 3 : 2,
+            AutoSize = false,
+            Padding = new Padding(10),
+        };
+
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));
+
+        if (includeFooter)
+            layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+
+        pnlContent.Controls.Add(layout);
+        pnlContent.Controls.SetChildIndex(progressBar, pnlContent.Controls.Count - 1);
+
+        return layout;
+    }
+
+    private static TextBox CreateReadOnlyMultiline()
+    {
+        return new TextBox
+        {
+            Multiline = true,
+            ReadOnly = true,
+            ScrollBars = ScrollBars.Vertical,
+            Dock = DockStyle.Fill,
+        };
+    }
+
+    private void ResetNextButtonHandlers()
+    {
+        // Remove any custom handler we previously set
+        if (_currentNextHandler != null)
+        {
+            btnNext.Click -= _currentNextHandler;
+            _currentNextHandler = null;
+        }
+
+        // Ensure the default handler is attached (idempotent operation)
+        btnNext.Click -= BtnNext_Click;
+        btnNext.Click += BtnNext_Click;
+    }
+
+    private void SetNextButtonHandler(EventHandler handler)
+    {
+        // Remove the default handler
+        btnNext.Click -= BtnNext_Click;
+        
+        // Remove any previous custom handler
+        if (_currentNextHandler != null)
+        {
+            btnNext.Click -= _currentNextHandler;
+        }
+
+        // Set the new custom handler
+        _currentNextHandler = handler;
+        btnNext.Click += _currentNextHandler;
+    }
 
     public MainForm()
     {
@@ -92,7 +159,6 @@ public partial class MainForm : Form
         btnNext.Text = "Weiter >";
         btnNext.Size = new Size(100, 35);
         btnNext.Margin = new Padding(5, 0, 0, 0);
-        btnNext.Click += BtnNext_Click;
         buttonFlow.Controls.Add(btnNext);
 
         btnBack.Text = "< Zurück";
@@ -101,6 +167,8 @@ public partial class MainForm : Form
         btnBack.Click += BtnBack_Click;
         btnBack.Enabled = false;
         buttonFlow.Controls.Add(btnBack);
+
+        ResetNextButtonHandlers();
 
         // Progress bar
         progressBar.Dock = DockStyle.Bottom;
@@ -173,31 +241,6 @@ public partial class MainForm : Form
         pnlContent.Controls.Add(progressBar);
     }
 
-    private void AddScalingTextArea(string text, int top, int? fixedBottom = null)
-    {
-        var txtLog = new TextBox
-        {
-            Multiline = true,
-            ReadOnly = true,
-            ScrollBars = ScrollBars.Vertical,
-            Location = new Point(20, top),
-            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
-            Text = text
-        };
-        
-        if (fixedBottom.HasValue)
-        {
-            txtLog.Height = pnlContent.Height - top - fixedBottom.Value - 20;
-        }
-        else
-        {
-            txtLog.Height = Math.Max(150, pnlContent.Height - top - 40);
-        }
-        
-        pnlContent.Controls.Add(txtLog);
-        pnlContent.Controls.SetChildIndex(txtLog, pnlContent.Controls.Count - 2); // Keep progress bar on top
-    }
-
     private int FilterAppsOnTargetDrive()
     {
         var initialCount = _scannedApps.Count;
@@ -212,16 +255,28 @@ public partial class MainForm : Form
     {
         _currentStep = WizardStep.Welcome;
         ClearContent();
+        var layout = CreateStandardLayout(includeFooter: true);
+
+        layout.RowCount = 4;
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
 
         var lblTitle = new Label
         {
             Text = "Willkommen beim ProgramMover!",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20),
-            Anchor = AnchorStyles.Top | AnchorStyles.Left
+            Margin = new Padding(0, 0, 0, 10)
         };
-        pnlContent.Controls.Add(lblTitle);
+        layout.Controls.Add(lblTitle, 0, 0);
+
+        var warningPanel = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.TopDown,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Margin = new Padding(0, 0, 0, 10)
+        };
 
         var lblWarning = new Label
         {
@@ -229,20 +284,12 @@ public partial class MainForm : Form
             Font = new Font(Font.FontFamily, 12, FontStyle.Bold),
             ForeColor = Color.Red,
             AutoSize = true,
-            Location = new Point(20, 80),
-            Anchor = AnchorStyles.Top | AnchorStyles.Left
+            Margin = new Padding(0, 0, 0, 10)
         };
-        pnlContent.Controls.Add(lblWarning);
+        warningPanel.Controls.Add(lblWarning);
 
-        var txtInfo = new TextBox
-        {
-            Multiline = true,
-            ReadOnly = true,
-            ScrollBars = ScrollBars.Vertical,
-            Location = new Point(20, 120),
-            Size = new Size(820, 300),
-            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
-            Text = @"Dieses Tool verschiebt installierte Programme von C:\ nach D:\ unter Verwendung von Junctions (symbolischen Links).
+        var txtInfo = CreateReadOnlyMultiline();
+        txtInfo.Text = @"Dieses Tool verschiebt installierte Programme von C:\ nach D:\ unter Verwendung von Junctions (symbolischen Links).
 
 WICHTIG VOR DEM START:
 • Erstellen Sie ein vollständiges System-Backup!
@@ -266,20 +313,36 @@ EMPFOHLEN:
 Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
 1. Ein Backup Ihres Systems erstellt haben
 2. Die Risiken verstehen
-3. Auf eigene Verantwortung handeln"
+3. Auf eigene Verantwortung handeln";
+        warningPanel.Controls.Add(txtInfo);
+
+        layout.Controls.Add(warningPanel, 0, 1);
+
+        var chkVerboseLogging = new CheckBox
+        {
+            Text = "Optionale Detail-Logs für Debugging aktivieren",
+            AutoSize = true,
+            Margin = new Padding(0, 10, 0, 0),
+            Checked = LoggingOptions.EnableDebugLogs
         };
-        pnlContent.Controls.Add(txtInfo);
+        chkVerboseLogging.CheckedChanged += (s, e) =>
+        {
+            LoggingOptions.EnableDebugLogs = chkVerboseLogging.Checked;
+            lblStatus.Text = chkVerboseLogging.Checked
+                ? "Detail-Logging aktiviert. Debug-Informationen werden gesammelt."
+                : "Detail-Logging deaktiviert.";
+        };
+        layout.Controls.Add(chkVerboseLogging, 0, 2);
 
         var chkBackup = new CheckBox
         {
             Text = "Ich habe ein Backup erstellt und die Hinweise gelesen",
-            Location = new Point(20, 440),
-            Size = new Size(400, 30),
-            Anchor = AnchorStyles.Bottom | AnchorStyles.Left,
-            Font = new Font(Font.FontFamily, 10, FontStyle.Bold)
+            AutoSize = true,
+            Font = new Font(Font.FontFamily, 10, FontStyle.Bold),
+            Margin = new Padding(0, 10, 0, 0)
         };
         chkBackup.CheckedChanged += (s, e) => btnNext.Enabled = chkBackup.Checked;
-        pnlContent.Controls.Add(chkBackup);
+        layout.Controls.Add(chkBackup, 0, 3);
 
         btnNext.Enabled = false;
         btnBack.Enabled = false;
@@ -292,27 +355,19 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
         ClearContent();
         btnNext.Enabled = false;
         btnBack.Enabled = true;
+        var layout = CreateStandardLayout();
 
         var lblTitle = new Label
         {
             Text = "Sicherheitsprüfungen",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20),
-            Anchor = AnchorStyles.Top | AnchorStyles.Left
+            Margin = new Padding(0, 0, 0, 10)
         };
-        pnlContent.Controls.Add(lblTitle);
+        layout.Controls.Add(lblTitle, 0, 0);
 
-        var txtResults = new TextBox
-        {
-            Multiline = true,
-            ReadOnly = true,
-            ScrollBars = ScrollBars.Vertical,
-            Location = new Point(20, 80),
-            Size = new Size(820, 450),
-            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
-        };
-        pnlContent.Controls.Add(txtResults);
+        var txtResults = CreateReadOnlyMultiline();
+        layout.Controls.Add(txtResults, 0, 1);
 
         lblStatus.Text = "Führe Sicherheitsprüfungen durch...";
         Application.DoEvents();
@@ -320,7 +375,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
         Task.Run(() =>
         {
             var result = _orchestrator.PerformSecurityChecks();
-            
+            var recoveryReport = _orchestrator.DetectAndFixPreviousRuns();
+
             Invoke(() =>
             {
                 var sb = new System.Text.StringBuilder();
@@ -354,13 +410,61 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
                         sb.AppendLine($"  ✗ {error}");
                     sb.AppendLine();
                 }
-                
+
+                if (recoveryReport.HasFindings)
+                {
+                    sb.AppendLine("AUTOMATISCHE WIEDERHERSTELLUNG VON FRÜHEREN LÄUFEN:");
+
+                    if (recoveryReport.RestoredPaths.Any())
+                        sb.AppendLine($"  • {recoveryReport.RestoredPaths.Count} Installationen wurden zurückkopiert (\".old\" -> Originalpfad)");
+
+                    if (recoveryReport.NeedsManualReview.Any())
+                        sb.AppendLine($"  • {recoveryReport.NeedsManualReview.Count} Ordner benötigen manuelle Prüfung (\".old\" ohne Junction)");
+
+                    if (recoveryReport.Errors.Any())
+                        sb.AppendLine($"  • Fehler bei der Wiederherstellung: {string.Join(", ", recoveryReport.Errors.Take(3))}");
+
+                    sb.AppendLine();
+                }
+
                 txtResults.Text = sb.ToString();
-                
+
                 if (result.IsValid)
                 {
-                    lblStatus.Text = "Sicherheitsprüfungen erfolgreich abgeschlossen.";
+                    var recoveryNote = recoveryReport.RestoredPaths.Any()
+                        ? " Frühere fehlerhafte Migrationen wurden repariert."
+                        : string.Empty;
+
+                    var manualReviewNote = recoveryReport.NeedsManualReview.Any()
+                        ? " Bitte prüfen Sie die gefundenen .old-Ordner manuell, bevor Sie fortfahren."
+                        : string.Empty;
+
+                    lblStatus.Text = "Sicherheitsprüfungen erfolgreich abgeschlossen." + recoveryNote + manualReviewNote;
                     btnNext.Enabled = true;
+
+                    if (recoveryReport.NeedsManualReview.Any())
+                    {
+                        SetNextButtonHandler((s, e) =>
+                        {
+                            var confirmation = MessageBox.Show(
+                                "Es wurden Ordner gefunden, die eine manuelle Überprüfung erfordern (\".old\" ohne Junction).\n\n" +
+                                "Bitte stellen Sie sicher, dass Sie diese Ordner geprüft und ggf. bereinigt haben, bevor Sie fortfahren.\n\n" +
+                                "Möchten Sie trotzdem mit der Migration fortfahren?",
+                                "Warnung – manuelle Überprüfung empfohlen",
+                                MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Warning,
+                                MessageBoxDefaultButton.Button2);
+
+                            if (confirmation == DialogResult.Yes)
+                            {
+                                ShowScanning();
+                            }
+                        });
+                    }
+                    else
+                    {
+                        SetNextButtonHandler((s, e) => ShowScanning());
+                    }
                 }
                 else
                 {
@@ -379,27 +483,19 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
         ClearContent();
         btnNext.Enabled = false;
         btnBack.Enabled = false;
+        var layout = CreateStandardLayout();
 
         var lblTitle = new Label
         {
             Text = "System-Scan",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20),
-            Anchor = AnchorStyles.Top | AnchorStyles.Left
+            Margin = new Padding(0, 0, 0, 10)
         };
-        pnlContent.Controls.Add(lblTitle);
+        layout.Controls.Add(lblTitle, 0, 0);
 
-        var txtLog = new TextBox
-        {
-            Multiline = true,
-            ReadOnly = true,
-            ScrollBars = ScrollBars.Vertical,
-            Location = new Point(20, 80),
-            Size = new Size(820, 450),
-            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
-        };
-        pnlContent.Controls.Add(txtLog);
+        var txtLog = CreateReadOnlyMultiline();
+        layout.Controls.Add(txtLog, 0, 1);
 
         progressBar.Visible = true;
         progressBar.Style = ProgressBarStyle.Marquee;
@@ -436,27 +532,19 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
         ClearContent();
         btnNext.Enabled = false;
         btnBack.Enabled = true;
+        var layout = CreateStandardLayout();
 
         var lblTitle = new Label
         {
             Text = "Analyse",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20),
-            Anchor = AnchorStyles.Top | AnchorStyles.Left
+            Margin = new Padding(0, 0, 0, 10)
         };
-        pnlContent.Controls.Add(lblTitle);
+        layout.Controls.Add(lblTitle, 0, 0);
 
-        var txtLog = new TextBox
-        {
-            Multiline = true,
-            ReadOnly = true,
-            ScrollBars = ScrollBars.Vertical,
-            Location = new Point(20, 80),
-            Size = new Size(820, 450),
-            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
-        };
-        pnlContent.Controls.Add(txtLog);
+        var txtLog = CreateReadOnlyMultiline();
+        layout.Controls.Add(txtLog, 0, 1);
 
         progressBar.Visible = true;
         progressBar.Style = ProgressBarStyle.Marquee;
@@ -496,28 +584,26 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
         ClearContent();
         btnNext.Enabled = true;
         btnBack.Enabled = true;
+        var layout = CreateStandardLayout(includeFooter: true);
 
         var lblTitle = new Label
         {
             Text = "Programmauswahl",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20),
-            Anchor = AnchorStyles.Top | AnchorStyles.Left
+            Margin = new Padding(0, 0, 0, 10)
         };
-        pnlContent.Controls.Add(lblTitle);
+        layout.Controls.Add(lblTitle, 0, 0);
 
         var dataGridView = new DataGridView
         {
-            Location = new Point(20, 80),
-            Size = new Size(820, 400),
+            Dock = DockStyle.Fill,
             AllowUserToAddRows = false,
             AllowUserToDeleteRows = false,
             SelectionMode = DataGridViewSelectionMode.FullRowSelect,
             MultiSelect = true,
             ReadOnly = false,
             AutoSizeColumnsMode = DataGridViewAutoSizeColumnsMode.Fill,
-            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
         };
 
         dataGridView.Columns.Add(new DataGridViewCheckBoxColumn { Name = "Select", HeaderText = "Auswählen", Width = 80 });
@@ -541,14 +627,21 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             dataGridView.Rows[row].Tag = app;
         }
 
-        pnlContent.Controls.Add(dataGridView);
+        layout.Controls.Add(dataGridView, 0, 1);
+
+        var footer = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Margin = new Padding(0, 10, 0, 0)
+        };
 
         var btnSelectAll = new Button
         {
             Text = "Alle 'MoveableAuto' auswählen",
-            Location = new Point(20, 490),
-            Size = new Size(200, 30),
-            Anchor = AnchorStyles.Bottom | AnchorStyles.Left
+            AutoSize = true
         };
         btnSelectAll.Click += (s, e) =>
         {
@@ -558,30 +651,37 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
                 row.Cells[0].Value = app?.Category == MoveCategory.MoveableAuto;
             }
         };
-        pnlContent.Controls.Add(btnSelectAll);
+        footer.Controls.Add(btnSelectAll);
 
-        btnNext.Click -= BtnNext_Click;
-        btnNext.Click += (s, e) =>
-        {
-            _selectedApps = dataGridView.Rows.Cast<DataGridViewRow>()
-                .Where(r => r.Cells[0].Value is bool b && b)
-                .Select(r => r.Tag as AppEntry)
-                .Where(a => a != null)
-                .Cast<AppEntry>()
-                .ToList();
+        layout.Controls.Add(footer, 0, 2);
 
-            if (!_selectedApps.Any())
-            {
-                MessageBox.Show("Bitte wählen Sie mindestens ein Programm aus.", "Hinweis", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                return;
-            }
+        _selectionGrid = dataGridView;
 
-            btnNext.Click -= BtnNext_Click;
-            btnNext.Click += BtnNext_Click;
-            ShowPlan();
-        };
+        SetNextButtonHandler(SelectionNextClicked);
 
         lblStatus.Text = $"{_scannedApps.Count} Programme gefunden. Wählen Sie Programme zum Verschieben aus.";
+    }
+
+    private void SelectionNextClicked(object? sender, EventArgs e)
+    {
+        if (_selectionGrid == null)
+            return;
+
+        _selectedApps = _selectionGrid.Rows.Cast<DataGridViewRow>()
+            .Where(r => r.Cells[0].Value is bool b && b)
+            .Select(r => r.Tag as AppEntry)
+            .Where(a => a != null)
+            .Cast<AppEntry>()
+            .ToList();
+
+        if (!_selectedApps.Any())
+        {
+            MessageBox.Show("Bitte wählen Sie mindestens ein Programm aus.", "Hinweis", MessageBoxButtons.OK, MessageBoxIcon.Information);
+            return;
+        }
+
+        ResetNextButtonHandlers();
+        ShowPlan();
     }
 
     private void ShowPlan()
@@ -592,30 +692,23 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
         btnNext.Enabled = true;
         btnBack.Enabled = true;
 
+        var layout = CreateStandardLayout();
+
         var lblTitle = new Label
         {
             Text = "Migrationsplan",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20),
-            Anchor = AnchorStyles.Top | AnchorStyles.Left
+            Margin = new Padding(0, 0, 0, 10)
         };
-        pnlContent.Controls.Add(lblTitle);
+        layout.Controls.Add(lblTitle, 0, 0);
 
         lblStatus.Text = "Erstelle Migrationsplan...";
         Application.DoEvents();
 
         _currentPlan = _orchestrator.CreateMigrationPlan(_selectedApps, false);
 
-        var txtPlan = new TextBox
-        {
-            Multiline = true,
-            ReadOnly = true,
-            ScrollBars = ScrollBars.Vertical,
-            Location = new Point(20, 80),
-            Size = new Size(820, 450),
-            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
-        };
+        var txtPlan = CreateReadOnlyMultiline();
 
         var sb = new System.Text.StringBuilder();
         sb.AppendLine($"MIGRATIONSPLAN");
@@ -625,17 +718,17 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
         sb.AppendLine($"Gesamtgröße: {_currentPlan.TotalSizeBytes / (1024.0 * 1024.0 * 1024.0):F2} GB");
         sb.AppendLine();
         sb.AppendLine("SCHRITTE:");
-        
+
         foreach (var step in _currentPlan.Steps.Take(20))
         {
             sb.AppendLine($"  {step.Order + 1}. [{step.StepType}] {step.Description}");
         }
-        
+
         if (_currentPlan.Steps.Count > 20)
             sb.AppendLine($"  ... und {_currentPlan.Steps.Count - 20} weitere Schritte");
 
         txtPlan.Text = sb.ToString();
-        pnlContent.Controls.Add(txtPlan);
+        layout.Controls.Add(txtPlan, 0, 1);
 
         lblStatus.Text = $"Plan erstellt: {_currentPlan.Steps.Count} Schritte für {_currentPlan.Apps.Count} Programme";
     }
@@ -647,27 +740,19 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
         btnNext.Text = "Live ausführen";
         btnNext.Enabled = false;
         btnBack.Enabled = false;
+        var layout = CreateStandardLayout();
 
         var lblTitle = new Label
         {
             Text = "DryRun - Simulation",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20),
-            Anchor = AnchorStyles.Top | AnchorStyles.Left
+            Margin = new Padding(0, 0, 0, 10)
         };
-        pnlContent.Controls.Add(lblTitle);
+        layout.Controls.Add(lblTitle, 0, 0);
 
-        var txtLog = new TextBox
-        {
-            Multiline = true,
-            ReadOnly = true,
-            ScrollBars = ScrollBars.Vertical,
-            Location = new Point(20, 80),
-            Size = new Size(820, 450),
-            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
-        };
-        pnlContent.Controls.Add(txtLog);
+        var txtLog = CreateReadOnlyMultiline();
+        layout.Controls.Add(txtLog, 0, 1);
 
         progressBar.Visible = true;
         lblStatus.Text = "Führe DryRun durch...";
@@ -705,8 +790,7 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
                 MessageBox.Show($"DryRun erfolgreich abgeschlossen!\n\n{result.SuccessfulSteps.Count} Schritte simuliert.\n\nSie können jetzt die echte Migration starten.",
                     "DryRun abgeschlossen", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 
-                btnNext.Click -= BtnNext_Click;
-                btnNext.Click += (s, e) => ShowExecution();
+                SetNextButtonHandler((s, e) => ShowExecution());
             });
         });
     }
@@ -730,27 +814,19 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
         btnNext.Enabled = false;
         btnBack.Enabled = false;
         btnCancel.Enabled = false;
+        var layout = CreateStandardLayout();
 
         var lblTitle = new Label
         {
             Text = "Migration läuft...",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20),
-            Anchor = AnchorStyles.Top | AnchorStyles.Left
+            Margin = new Padding(0, 0, 0, 10)
         };
-        pnlContent.Controls.Add(lblTitle);
+        layout.Controls.Add(lblTitle, 0, 0);
 
-        var txtLog = new TextBox
-        {
-            Multiline = true,
-            ReadOnly = true,
-            ScrollBars = ScrollBars.Vertical,
-            Location = new Point(20, 80),
-            Size = new Size(820, 450),
-            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
-        };
-        pnlContent.Controls.Add(txtLog);
+        var txtLog = CreateReadOnlyMultiline();
+        layout.Controls.Add(txtLog, 0, 1);
 
         progressBar.Visible = true;
         lblStatus.Text = "Migration wird ausgeführt...";
@@ -815,27 +891,19 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
         btnNext.Text = "Abschließen";
         btnNext.Enabled = false;
         btnBack.Enabled = false;
+        var layout = CreateStandardLayout();
 
         var lblTitle = new Label
         {
             Text = "Überwachung",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20),
-            Anchor = AnchorStyles.Top | AnchorStyles.Left
+            Margin = new Padding(0, 0, 0, 10)
         };
-        pnlContent.Controls.Add(lblTitle);
+        layout.Controls.Add(lblTitle, 0, 0);
 
-        var txtStatus = new TextBox
-        {
-            Multiline = true,
-            ReadOnly = true,
-            ScrollBars = ScrollBars.Vertical,
-            Location = new Point(20, 80),
-            Size = new Size(820, 450),
-            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right
-        };
-        pnlContent.Controls.Add(txtStatus);
+        var txtStatus = CreateReadOnlyMultiline();
+        layout.Controls.Add(txtStatus, 0, 1);
 
         progressBar.Visible = true;
         progressBar.Style = ProgressBarStyle.Marquee;
@@ -885,26 +953,19 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
         ClearContent();
         btnNext.Text = "Beenden";
         btnBack.Enabled = false;
+        var layout = CreateStandardLayout(includeFooter: true);
 
         var lblTitle = new Label
         {
             Text = "Migration abgeschlossen!",
             Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
             AutoSize = true,
-            Location = new Point(20, 20),
-            Anchor = AnchorStyles.Top | AnchorStyles.Left
+            Margin = new Padding(0, 0, 0, 10)
         };
-        pnlContent.Controls.Add(lblTitle);
+        layout.Controls.Add(lblTitle, 0, 0);
 
-        var txtInfo = new TextBox
-        {
-            Multiline = true,
-            ReadOnly = true,
-            ScrollBars = ScrollBars.Vertical,
-            Location = new Point(20, 80),
-            Size = new Size(820, 400),
-            Anchor = AnchorStyles.Top | AnchorStyles.Bottom | AnchorStyles.Left | AnchorStyles.Right,
-            Text = @"Die Migration wurde erfolgreich abgeschlossen!
+        var txtInfo = CreateReadOnlyMultiline();
+        txtInfo.Text = @"Die Migration wurde erfolgreich abgeschlossen!
 
 NÄCHSTE SCHRITTE:
 
@@ -928,16 +989,13 @@ Bei Problemen:
 - Nutzen Sie die Rollback-Funktion falls nötig
 - Kontaktieren Sie den Support
 
-Vielen Dank für die Nutzung von ProgramMover!"
-        };
-        pnlContent.Controls.Add(txtInfo);
+Vielen Dank für die Nutzung von ProgramMover!";
+        layout.Controls.Add(txtInfo, 0, 1);
 
         var btnCleanup = new Button
         {
             Text = "Cleanup: .old-Verzeichnisse anzeigen",
-            Location = new Point(20, 500),
-            Size = new Size(250, 30),
-            Anchor = AnchorStyles.Bottom | AnchorStyles.Left
+            AutoSize = true
         };
         btnCleanup.Click += async (s, e) =>
         {
@@ -947,10 +1005,19 @@ Vielen Dank für die Nutzung von ProgramMover!"
                           (result.PendingDirectories.Count > 10 ? $"\n... und {result.PendingDirectories.Count - 10} weitere" : ""),
                           "Cleanup-Info", MessageBoxButtons.OK, MessageBoxIcon.Information);
         };
-        pnlContent.Controls.Add(btnCleanup);
 
-        btnNext.Click -= BtnNext_Click;
-        btnNext.Click += (s, e) => Close();
+        var footer = new FlowLayoutPanel
+        {
+            Dock = DockStyle.Fill,
+            FlowDirection = FlowDirection.LeftToRight,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Margin = new Padding(0, 10, 0, 0)
+        };
+        footer.Controls.Add(btnCleanup);
+        layout.Controls.Add(footer, 0, 2);
+
+        SetNextButtonHandler((s, e) => Close());
 
         lblStatus.Text = "Migration erfolgreich abgeschlossen!";
     }
