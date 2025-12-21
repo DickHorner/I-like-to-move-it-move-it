@@ -119,6 +119,7 @@ public partial class MainForm : Form
         // Content panel - Add SECOND so it fills remaining space
         pnlContent.Dock = DockStyle.Fill;
         pnlContent.Padding = new Padding(20);
+        pnlContent.AutoScroll = true;
         Controls.Add(pnlContent);
 
         var buttonsLayout = new TableLayoutPanel
@@ -258,11 +259,11 @@ public partial class MainForm : Form
         ClearContent();
         var layout = CreateStandardLayout(includeFooter: false);
 
-        layout.RowCount = 4;
-        layout.RowStyles[0] = new RowStyle(SizeType.AutoSize);     // Title
-        layout.RowStyles[1] = new RowStyle(SizeType.Percent, 100); // Warning panel - fill available space
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // Verbose logging checkbox
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // Backup checkbox
+        layout.RowCount = 3;
+        layout.RowStyles.Clear();
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // Title
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // Warning panel with textbox
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // Checkboxes container
 
         var lblTitle = new Label
         {
@@ -295,7 +296,7 @@ public partial class MainForm : Form
         var txtInfo = CreateReadOnlyMultiline();
         txtInfo.Dock = DockStyle.None;
         txtInfo.Width = 700;
-        txtInfo.Height = 200;
+        txtInfo.Height = 150;
         txtInfo.Margin = new Padding(0, 0, 0, 10);
         txtInfo.Text = @"Dieses Tool verschiebt installierte Programme von C:\ nach D:\ unter Verwendung von Junctions (symbolischen Links).
 
@@ -326,11 +327,18 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
 
         layout.Controls.Add(warningPanel, 0, 1);
 
+        var checkboxPanel = new FlowLayoutPanel
+        {
+            FlowDirection = FlowDirection.TopDown,
+            AutoSize = true,
+            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Margin = new Padding(0, 10, 0, 0)
+        };
+
         var chkVerboseLogging = new CheckBox
         {
             Text = "Optionale Detail-Logs für Debugging aktivieren",
             AutoSize = true,
-            Margin = new Padding(0, 10, 0, 0),
             Checked = LoggingOptions.EnableDebugLogs
         };
         chkVerboseLogging.CheckedChanged += (s, e) =>
@@ -340,7 +348,7 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
                 ? "Detail-Logging aktiviert. Debug-Informationen werden gesammelt."
                 : "Detail-Logging deaktiviert.";
         };
-        layout.Controls.Add(chkVerboseLogging, 0, 2);
+        checkboxPanel.Controls.Add(chkVerboseLogging);
 
         var chkBackup = new CheckBox
         {
@@ -350,7 +358,9 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             Margin = new Padding(0, 10, 0, 0)
         };
         chkBackup.CheckedChanged += (s, e) => btnNext.Enabled = chkBackup.Checked;
-        layout.Controls.Add(chkBackup, 0, 3);
+        checkboxPanel.Controls.Add(chkBackup);
+
+        layout.Controls.Add(checkboxPanel, 0, 2);
 
         btnNext.Enabled = false;
         btnBack.Enabled = false;
