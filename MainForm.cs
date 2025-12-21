@@ -337,14 +337,16 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             FlowDirection = FlowDirection.TopDown,
             AutoSize = true,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Margin = new Padding(0, 10, 0, 0)
+            Margin = new Padding(0, 10, 0, 0),
+            WrapContents = false
         };
 
         var chkVerboseLogging = new CheckBox
         {
             Text = "Optionale Detail-Logs für Debugging aktivieren",
             AutoSize = true,
-            Checked = LoggingOptions.EnableDebugLogs
+            Checked = LoggingOptions.EnableDebugLogs,
+            Margin = new Padding(0, 0, 0, 5)
         };
         chkVerboseLogging.CheckedChanged += (s, e) =>
         {
@@ -360,7 +362,7 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             Text = "Ich habe ein Backup erstellt und die Hinweise gelesen",
             AutoSize = true,
             Font = new Font(Font.FontFamily, 10, FontStyle.Bold),
-            Margin = new Padding(0, 10, 0, 0)
+            Margin = new Padding(0, 5, 0, 0)
         };
         chkBackup.CheckedChanged += (s, e) => btnNext.Enabled = chkBackup.Checked;
         checkboxPanel.Controls.Add(chkBackup);
