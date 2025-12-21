@@ -54,7 +54,13 @@ public enum LogLevel
 
 public static class LoggingOptions
 {
-    public static bool EnableDebugLogs { get; set; }
+    private static volatile bool _enableDebugLogs;
+
+    public static bool EnableDebugLogs
+    {
+        get => _enableDebugLogs;
+        set => _enableDebugLogs = value;
+    }
 }
 
 public class RecoveryReport
