@@ -179,9 +179,9 @@ public class OrchestratorAgent
                 EndTime = DateTime.Now
             };
         }
-        "04_execution.log"
+        
         // Save all logs to file
-        SaveLogs();
+        SaveLogs("04_execution.log");
         
         return result;
     }

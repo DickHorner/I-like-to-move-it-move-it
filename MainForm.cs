@@ -902,10 +902,7 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
                         : "";
                     MessageBox.Show($"{result.Message}\n\nErfolgreich: {result.SuccessfulSteps.Count}\nFehlgeschlagen: {result.FailedSteps.Count}\nDauer: {result.Duration:mm\\:ss}{failureDetail}",
                         "Migration abgeschlossen (mit Fehlern)", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    ResetNextButtonHandlers(s => $"• {s.AppName}: {s.Description} - {s.ErrorMessage}"))}"
-                        : "";
-                    MessageBox.Show($"{result.Message}\n\nErfolgreich: {result.SuccessfulSteps.Count}\nFehlgeschlagen: {result.FailedSteps.Count}\nDauer: {result.Duration:mm\\:ss}{failureDetail}",
-                        "Migration abgeschlossen (mit Fehlern)", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    ResetNextButtonHandlers();
                 }
             });
         });
@@ -1129,15 +1126,15 @@ Vielen Dank für die Nutzung von ProgramMover!";
             Margin = new Padding(0, 10, 0, 0)
         };
         footer.Controls.Add(btnCleanup);
-        layout.Controls.Add(footer, 0,
+        layout.Controls.Add(footer, 0, 2);
+
+        SetNextButtonHandler((s, e) =>
         {
             // Cancel monitoring task if it's still running
             _monitoringCts?.Cancel();
             _monitoringCts?.Dispose();
             Close();
-        }
-
-        SetNextButtonHandler((s, e) => Close());
+        });
 
         lblStatus.Text = "Migration erfolgreich abgeschlossen!";
     }
