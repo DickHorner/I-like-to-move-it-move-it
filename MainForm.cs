@@ -256,7 +256,7 @@ public partial class MainForm : Form
     {
         _currentStep = WizardStep.Welcome;
         ClearContent();
-        var layout = CreateStandardLayout(includeFooter: true);
+        var layout = CreateStandardLayout(includeFooter: false);
 
         layout.RowCount = 4;
         layout.RowStyles[0] = new RowStyle(SizeType.AutoSize);     // Title
