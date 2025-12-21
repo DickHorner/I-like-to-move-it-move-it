@@ -275,10 +275,11 @@ public partial class MainForm : Form
 
         var warningPanel = new FlowLayoutPanel
         {
-            Dock = DockStyle.Fill,
+            Dock = DockStyle.None,
             FlowDirection = FlowDirection.TopDown,
             AutoSize = false,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
+            Width = 700,
+            Height = 250,
             Margin = new Padding(0, 0, 0, 10)
         };
 
@@ -295,7 +296,7 @@ public partial class MainForm : Form
         var txtInfo = CreateReadOnlyMultiline();
         txtInfo.Dock = DockStyle.None;
         txtInfo.Width = 700;
-        txtInfo.Height = 200;
+        txtInfo.Height = 220;
         txtInfo.Margin = new Padding(0, 0, 0, 10);
         txtInfo.Text = @"Dieses Tool verschiebt installierte Programme von C:\ nach D:\ unter Verwendung von Junctions (symbolischen Links).
 
