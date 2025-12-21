@@ -380,6 +380,9 @@ public class ScannerAgent
 
     private void Log(LogLevel level, string category, string message, string? exception = null)
     {
+        if (!LoggingOptions.EnableDebugLogs && (level == LogLevel.Debug || level == LogLevel.Trace))
+            return;
+
         _logs.Add(new ExecutionLog
         {
             Level = level,
