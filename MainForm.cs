@@ -273,7 +273,7 @@ public partial class MainForm : Form
         {
             Dock = DockStyle.Fill,
             FlowDirection = FlowDirection.TopDown,
-            AutoSize = true,
+            AutoSize = false,
             AutoSizeMode = AutoSizeMode.GrowAndShrink,
             Margin = new Padding(0, 0, 0, 10)
         };
@@ -289,6 +289,9 @@ public partial class MainForm : Form
         warningPanel.Controls.Add(lblWarning);
 
         var txtInfo = CreateReadOnlyMultiline();
+        txtInfo.Dock = DockStyle.None;
+        txtInfo.Size = new Size(700, 200);
+        txtInfo.Margin = new Padding(0, 0, 0, 10);
         txtInfo.Text = @"Dieses Tool verschiebt installierte Programme von C:\ nach D:\ unter Verwendung von Junctions (symbolischen Links).
 
 WICHTIG VOR DEM START:
