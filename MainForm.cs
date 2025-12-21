@@ -223,6 +223,9 @@ public partial class MainForm : Form
             case WizardStep.SecurityChecks:
                 ShowWelcome();
                 break;
+            case WizardStep.Checkout:
+                ShowExecutionLogsOnly();
+                break;
             case WizardStep.Analysis:
                 ShowSecurityChecks();
                 break;
@@ -488,6 +491,70 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
                 }
             });
         });
+    }
+
+    private void ShowCheckout()
+    {
+        _currentStep = WizardStep.Checkout;
+        ClearContent();
+        btnNext.Enabled = true;
+        btnBack.Enabled = false;
+        btnCancel.Enabled = true;
+        btnNext.Text = "Zur Überwachung";
+
+        var layout = CreateStandardLayout();
+
+        var lblTitle = new Label
+        {
+            Text = "Migration abgeschlossen - Übersicht",
+            Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
+            AutoSize = true,
+            Margin = new Padding(0, 0, 0, 10)
+        };
+        layout.Controls.Add(lblTitle, 0, 0);
+
+        var txtSummary = CreateReadOnlyMultiline();
+        layout.Controls.Add(txtSummary, 0, 1);
+
+        var sb = new System.Text.StringBuilder();
+        if (_lastExecutionResult != null)
+        {
+            var result = _lastExecutionResult;
+            sb.AppendLine("MIGRATIONSERGEBNIS\n");
+            sb.AppendLine($"Status: {(result.Success.GetValueOrDefault() ? "✓ ERFOLGREICH" : "⚠ MIT FEHLERN ABGESCHLOSSEN")}\n");
+            sb.AppendLine($"Dauer: {result.Duration:mm\\:ss}");
+            sb.AppendLine($"Erfolgreiche Schritte: {result.SuccessfulSteps.Count}");
+            sb.AppendLine($"Fehlerhafte Schritte: {result.FailedSteps.Count}\n");
+
+            if (result.SuccessfulSteps.Any())
+            {
+                sb.AppendLine("ERFOLGREICH MIGRIERT:");
+                foreach (var step in result.SuccessfulSteps)
+                    sb.AppendLine($"  ✓ {step.AppName} → {step.Description}");
+                sb.AppendLine();
+            }
+
+            if (result.FailedSteps.Any())
+            {
+                sb.AppendLine("FEHLERHAFTE MIGRATIONEN:");
+                foreach (var step in result.FailedSteps.Take(20))
+                    sb.AppendLine($"  ✗ {step.AppName}: {step.ErrorMessage}");
+                if (result.FailedSteps.Count > 20)
+                    sb.AppendLine($"  … und {result.FailedSteps.Count - 20} weitere Fehler");
+                sb.AppendLine();
+            }
+
+            lblStatus.Text = result.Success.GetValueOrDefault() ?
+                "Migration erfolgreich abgeschlossen" :
+                "Migration mit Fehlern abgeschlossen";
+        }
+        else
+        {
+            sb.AppendLine("Keine Ausführungsergebnisse vorhanden.");
+        }
+
+        sb.AppendLine("Klicken Sie auf 'Zur Überwachung', um fortzufahren.");
+        txtSummary.Text = sb.ToString();
     }
 
     private void ShowScanning()
@@ -898,6 +965,103 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
                 }
             });
         });
+    }
+
+    private void ShowCheckout()
+    {
+        _currentStep = WizardStep.Checkout;
+        ClearContent();
+        btnNext.Enabled = true;
+        btnBack.Enabled = true;
+        btnCancel.Enabled = true;
+        btnNext.Text = "Zur Überwachung";
+
+        var layout = CreateStandardLayout();
+
+        var lblTitle = new Label
+        {
+            Text = "Migration abgeschlossen - Übersicht",
+            Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
+            AutoSize = true,
+            Margin = new Padding(0, 0, 0, 10)
+        };
+        layout.Controls.Add(lblTitle, 0, 0);
+
+        var txtSummary = CreateReadOnlyMultiline();
+        layout.Controls.Add(txtSummary, 0, 1);
+
+        var sb = new System.Text.StringBuilder();
+        if (_lastExecutionResult != null)
+        {
+            var result = _lastExecutionResult;
+            sb.AppendLine("MIGRATIONSERGEBNIS\n");
+            sb.AppendLine($"Status: {(result.Success.GetValueOrDefault() ? "✓ ERFOLGREICH" : "⚠ MIT FEHLERN ABGESCHLOSSEN")}\n");
+            sb.AppendLine($"Dauer: {result.Duration:mm\\:ss}");
+            sb.AppendLine($"Erfolgreiche Schritte: {result.SuccessfulSteps.Count}");
+            sb.AppendLine($"Fehlerhafte Schritte: {result.FailedSteps.Count}\n");
+
+            if (result.SuccessfulSteps.Any())
+            {
+                sb.AppendLine("ERFOLGREICH MIGRIERT:");
+                foreach (var step in result.SuccessfulSteps)
+                    sb.AppendLine($"  ✓ {step.AppName} → {step.Description}");
+                sb.AppendLine();
+            }
+
+            if (result.FailedSteps.Any())
+            {
+                sb.AppendLine("FEHLERHAFTE MIGRATIONEN:");
+                foreach (var step in result.FailedSteps.Take(20))
+                    sb.AppendLine($"  ✗ {step.AppName}: {step.ErrorMessage}");
+                if (result.FailedSteps.Count > 20)
+                    sb.AppendLine($"  … und {result.FailedSteps.Count - 20} weitere Fehler");
+                sb.AppendLine();
+            }
+
+            lblStatus.Text = result.Success.GetValueOrDefault() ?
+                "Migration erfolgreich abgeschlossen" :
+                "Migration mit Fehlern abgeschlossen";
+        }
+        else
+        {
+            sb.AppendLine("Keine Ausführungsergebnisse vorhanden.");
+        }
+
+        sb.AppendLine("Klicken Sie auf 'Zur Überwachung', um fortzufahren.");
+        txtSummary.Text = sb.ToString();
+    }
+
+    private void ShowExecutionLogsOnly()
+    {
+        _currentStep = WizardStep.Execution;
+        ClearContent();
+        btnNext.Enabled = true;
+        btnBack.Enabled = true;
+        btnCancel.Enabled = true;
+        btnNext.Text = "Weiter";
+
+        var layout = CreateStandardLayout();
+
+        var lblTitle = new Label
+        {
+            Text = "Migration – Logansicht",
+            Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
+            AutoSize = true,
+            Margin = new Padding(0, 0, 0, 10)
+        };
+        layout.Controls.Add(lblTitle, 0, 0);
+
+        var txtLog = CreateReadOnlyMultiline();
+        layout.Controls.Add(txtLog, 0, 1);
+
+        var logs = _orchestrator.GetAllLogs()
+            .Where(l => l.Category == "Executor")
+            .Select(l => l.ToString());
+        txtLog.Text = string.Join(Environment.NewLine, logs);
+
+        lblStatus.Text = "Letzte Ausführungsergebnisse angezeigt.";
+
+        SetNextButtonHandler((s, e) => ShowCheckout());
     }
 
     private void ShowMonitoring()
