@@ -13,6 +13,7 @@ public partial class MainForm : Form
     private List<AppEntry> _scannedApps = new();
     private List<AppEntry> _selectedApps = new();
     private MigrationPlan? _currentPlan;
+        private ExecutionResult? _lastExecutionResult;
     private WizardStep _currentStep = WizardStep.Welcome;
     private DataGridView? _selectionGrid;
     private EventHandler? _currentNextHandler;
@@ -204,7 +205,10 @@ public partial class MainForm : Form
                 ShowExecution();
                 break;
             case WizardStep.Execution:
-                ShowMonitoring();
+                                 ShowCheckout();
+                                 break;
+                             case WizardStep.Checkout:
+                                 ShowMonitoring();
                 break;
             case WizardStep.Monitoring:
                 ShowComplete();
@@ -870,6 +874,8 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
                 btnNext.Enabled = true;
                 btnCancel.Enabled = true;
 
+                _lastExecutionResult = result;
+
                 var logs = _orchestrator.GetAllLogs()
                     .Where(l => l.Category == "Executor")
                     .Select(l => l.ToString());
@@ -1042,6 +1048,7 @@ Vielen Dank für die Nutzung von ProgramMover!";
         Plan,
         DryRun,
         Execution,
+                 Checkout,
         Monitoring,
         Complete
     }
