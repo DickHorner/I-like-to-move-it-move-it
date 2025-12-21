@@ -15,6 +15,7 @@ public partial class MainForm : Form
     private MigrationPlan? _currentPlan;
     private WizardStep _currentStep = WizardStep.Welcome;
     private DataGridView? _selectionGrid;
+    private EventHandler? _currentNextHandler;
 
     // UI Controls
     private Panel pnlContent = new();
@@ -61,12 +62,32 @@ public partial class MainForm : Form
 
     private void ResetNextButtonHandlers()
     {
-        foreach (var handler in btnNext.Click?.GetInvocationList() ?? Array.Empty<Delegate>())
+        // Remove any custom handler we previously set
+        if (_currentNextHandler != null)
         {
-            btnNext.Click -= (EventHandler)handler;
+            btnNext.Click -= _currentNextHandler;
+            _currentNextHandler = null;
         }
 
+        // Ensure the default handler is attached (idempotent operation)
+        btnNext.Click -= BtnNext_Click;
         btnNext.Click += BtnNext_Click;
+    }
+
+    private void SetNextButtonHandler(EventHandler handler)
+    {
+        // Remove the default handler
+        btnNext.Click -= BtnNext_Click;
+        
+        // Remove any previous custom handler
+        if (_currentNextHandler != null)
+        {
+            btnNext.Click -= _currentNextHandler;
+        }
+
+        // Set the new custom handler
+        _currentNextHandler = handler;
+        btnNext.Click += _currentNextHandler;
     }
 
     public MainForm()
@@ -419,10 +440,31 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
                         : string.Empty;
 
                     lblStatus.Text = "Sicherheitsprüfungen erfolgreich abgeschlossen." + recoveryNote + manualReviewNote;
-                    btnNext.Enabled = !recoveryReport.NeedsManualReview.Any();
+                    btnNext.Enabled = true;
 
-                    ResetNextButtonHandlers();
-                    btnNext.Click += (s, e) => ShowScanning();
+                    if (recoveryReport.NeedsManualReview.Any())
+                    {
+                        SetNextButtonHandler((s, e) =>
+                        {
+                            var confirmation = MessageBox.Show(
+                                "Es wurden Ordner gefunden, die eine manuelle Überprüfung erfordern (\".old\" ohne Junction).\n\n" +
+                                "Bitte stellen Sie sicher, dass Sie diese Ordner geprüft und ggf. bereinigt haben, bevor Sie fortfahren.\n\n" +
+                                "Möchten Sie trotzdem mit der Migration fortfahren?",
+                                "Warnung – manuelle Überprüfung empfohlen",
+                                MessageBoxButtons.YesNo,
+                                MessageBoxIcon.Warning,
+                                MessageBoxDefaultButton.Button2);
+
+                            if (confirmation == DialogResult.Yes)
+                            {
+                                ShowScanning();
+                            }
+                        });
+                    }
+                    else
+                    {
+                        SetNextButtonHandler((s, e) => ShowScanning());
+                    }
                 }
                 else
                 {
@@ -615,8 +657,7 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
 
         _selectionGrid = dataGridView;
 
-        ResetNextButtonHandlers();
-        btnNext.Click += SelectionNextClicked;
+        SetNextButtonHandler(SelectionNextClicked);
 
         lblStatus.Text = $"{_scannedApps.Count} Programme gefunden. Wählen Sie Programme zum Verschieben aus.";
     }
@@ -749,8 +790,7 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
                 MessageBox.Show($"DryRun erfolgreich abgeschlossen!\n\n{result.SuccessfulSteps.Count} Schritte simuliert.\n\nSie können jetzt die echte Migration starten.",
                     "DryRun abgeschlossen", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 
-                btnNext.Click -= BtnNext_Click;
-                btnNext.Click += (s, e) => ShowExecution();
+                SetNextButtonHandler((s, e) => ShowExecution());
             });
         });
     }
@@ -977,8 +1017,7 @@ Vielen Dank für die Nutzung von ProgramMover!";
         footer.Controls.Add(btnCleanup);
         layout.Controls.Add(footer, 0, 2);
 
-        ResetNextButtonHandlers();
-        btnNext.Click += (s, e) => Close();
+        SetNextButtonHandler((s, e) => Close());
 
         lblStatus.Text = "Migration erfolgreich abgeschlossen!";
     }

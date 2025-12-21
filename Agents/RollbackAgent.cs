@@ -26,12 +26,11 @@ public class RollbackAgent
         .Distinct(StringComparer.OrdinalIgnoreCase)
         .ToList();
 
-        foreach (var baseDir in baseDirectories)
+        foreach (var baseDir in baseDirectories.Where(d => Directory.Exists(d)))
         {
-            if (!Directory.Exists(baseDir))
-                continue;
-
-            foreach (var oldDir in Directory.GetDirectories(baseDir, "*.old", SearchOption.TopDirectoryOnly))
+            var oldDirectories = Directory.GetDirectories(baseDir, "*.old", SearchOption.TopDirectoryOnly);
+            
+            foreach (var oldDir in oldDirectories)
             {
                 var originalPath = oldDir[..^4];
 
@@ -45,6 +44,10 @@ public class RollbackAgent
                         continue;
                     }
 
+                    // Check if the path is a reparse point (junction, symbolic link, or mount point)
+                    // Note: File.GetAttributes works for both files and directories.
+                    // This treats any directory reparse point as a "junction" for rollback purposes,
+                    // which may also include symbolic links or mount points, not only traditional junctions.
                     var attributes = File.GetAttributes(originalPath);
                     var isJunction = (attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint;
 
