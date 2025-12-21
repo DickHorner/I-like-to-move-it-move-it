@@ -159,6 +159,7 @@ public partial class MainForm : Form
         btnNext.Text = "Weiter >";
         btnNext.Size = new Size(100, 35);
         btnNext.Margin = new Padding(5, 0, 0, 0);
+        btnNext.Click += BtnNext_Click;
         buttonFlow.Controls.Add(btnNext);
 
         btnBack.Text = "< Zurück";
@@ -290,7 +291,7 @@ public partial class MainForm : Form
 
         var txtInfo = CreateReadOnlyMultiline();
         txtInfo.Dock = DockStyle.None;
-        txtInfo.Size = new Size(700, 200);
+        txtInfo.Size = new Size(700, 280);
         txtInfo.Margin = new Padding(0, 0, 0, 10);
         txtInfo.Text = @"Dieses Tool verschiebt installierte Programme von C:\ nach D:\ unter Verwendung von Junctions (symbolischen Links).
 
