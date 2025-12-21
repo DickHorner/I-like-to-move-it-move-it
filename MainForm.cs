@@ -259,10 +259,10 @@ public partial class MainForm : Form
         var layout = CreateStandardLayout(includeFooter: true);
 
         layout.RowCount = 4;
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));  // Title
-        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Warning panel - fill available space
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));  // Verbose logging checkbox
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));  // Backup checkbox
+        layout.RowStyles[0] = new RowStyle(SizeType.AutoSize);     // Title
+        layout.RowStyles[1] = new RowStyle(SizeType.Percent, 100); // Warning panel - fill available space
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // Verbose logging checkbox
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // Backup checkbox
 
         var lblTitle = new Label
         {

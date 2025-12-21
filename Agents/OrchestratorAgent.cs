@@ -345,9 +345,14 @@ public class OrchestratorAgent
     {
         try
         {
-            var logDir = GetLogDirectory();
-            var logFile = filename ?? $"log_{DateTime.Now:yyyyMMdd_HHmmss}.jsonl";
-            var filePath = Path.Combine(logDir, logFile);
+            var baseLogDir = GetLogDirectory();
+            var runFolder = Path.Combine(baseLogDir, $"run_{DateTime.Now:yyyyMMdd_HHmmss}");
+            
+            if (!Directory.Exists(runFolder))
+                Directory.CreateDirectory(runFolder);
+            
+            var logFile = filename ?? "migration.jsonl";
+            var filePath = Path.Combine(runFolder, logFile);
             
             var logs = GetAllLogs();
             
