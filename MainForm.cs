@@ -259,7 +259,10 @@ public partial class MainForm : Form
         var layout = CreateStandardLayout(includeFooter: true);
 
         layout.RowCount = 4;
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));  // Title
+        layout.RowStyles.Add(new RowStyle(SizeType.Percent, 100));  // Warning panel - fill available space
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));  // Verbose logging checkbox
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));  // Backup checkbox
 
         var lblTitle = new Label
         {
@@ -291,7 +294,8 @@ public partial class MainForm : Form
 
         var txtInfo = CreateReadOnlyMultiline();
         txtInfo.Dock = DockStyle.None;
-        txtInfo.Size = new Size(700, 280);
+        txtInfo.Width = 700;
+        txtInfo.Height = 200;
         txtInfo.Margin = new Padding(0, 0, 0, 10);
         txtInfo.Text = @"Dieses Tool verschiebt installierte Programme von C:\ nach D:\ unter Verwendung von Junctions (symbolischen Links).
 
@@ -485,6 +489,7 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
     {
         _currentStep = WizardStep.Scanning;
         ClearContent();
+        ResetNextButtonHandlers();
         btnNext.Enabled = false;
         btnBack.Enabled = false;
         var layout = CreateStandardLayout();
