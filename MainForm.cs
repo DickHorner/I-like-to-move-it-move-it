@@ -260,7 +260,7 @@ public partial class MainForm : Form
 
         layout.RowCount = 4;
         layout.RowStyles[0] = new RowStyle(SizeType.AutoSize);     // Title
-        layout.RowStyles[1] = new RowStyle(SizeType.Percent, 100); // Warning panel - fill available space
+        layout.RowStyles[1] = new RowStyle(SizeType.AutoSize);     // Warning panel - size to content
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // Verbose logging checkbox
         layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // Backup checkbox
 
