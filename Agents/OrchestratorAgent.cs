@@ -85,9 +85,6 @@ public class OrchestratorAgent
         
         var apps = _scanner.ScanSystem();
         
-        // Save to file
-        SaveInventory(apps, "inventory.json");
-        
         Log(LogLevel.Info, "Orchestrator", $"System scan complete. Found {apps.Count} applications");
         
         return apps;
@@ -102,9 +99,6 @@ public class OrchestratorAgent
         
         var analyzedApps = _analyzer.AnalyzeApps(apps);
         
-        // Save to file
-        SaveInventory(analyzedApps, "inventory_scored.json");
-        
         Log(LogLevel.Info, "Orchestrator", "Analysis complete");
         
         return analyzedApps;
@@ -118,9 +112,6 @@ public class OrchestratorAgent
         Log(LogLevel.Info, "Orchestrator", $"Creating migration plan for {apps.Count} applications (DryRun: {isDryRun})");
         
         var plan = _planner.CreatePlan(apps, isDryRun);
-        
-        // Save to file
-        SavePlan(plan, "plan.json");
         
         Log(LogLevel.Info, "Orchestrator", $"Migration plan created with {plan.Steps.Count} steps");
         
@@ -139,9 +130,6 @@ public class OrchestratorAgent
         try
         {
             result = await _executor.ExecutePlan(plan, progress);
-            
-            // Save execution report
-            SaveExecutionReport(result, plan, "execution_report.json");
             
             if (!result.Success.GetValueOrDefault())
             {

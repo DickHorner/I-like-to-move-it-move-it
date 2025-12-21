@@ -257,9 +257,7 @@ public class ExecutorAgent
         if (string.IsNullOrEmpty(step.SourcePath) || string.IsNullOrEmpty(step.TargetPath))
             throw new ArgumentException("Source and target paths are required");
 
-        var logFile = Path.Combine(GetLogDirectory(), $"robocopy_{step.AppId}_{DateTime.Now:yyyyMMdd_HHmmss}.log");
-
-        var arguments = $"\"{step.SourcePath}\" \"{step.TargetPath}\" /MIR /COPYALL /XJ /R:{_config.RobocopyRetries} /W:{_config.RobocopyWaitSeconds} /LOG:\"{logFile}\" /NP /NDL /NFL";
+        var arguments = $"\"{step.SourcePath}\" \"{step.TargetPath}\" /MIR /COPYALL /XJ /R:{_config.RobocopyRetries} /W:{_config.RobocopyWaitSeconds} /NP /NDL /NFL";
 
         var psi = new ProcessStartInfo
         {
@@ -277,8 +275,18 @@ public class ExecutorAgent
         if (process == null)
             throw new InvalidOperationException("Failed to start robocopy");
 
+        var output = await process.StandardOutput.ReadToEndAsync();
         await process.WaitForExitAsync();
         step.ExitCode = process.ExitCode;
+
+        // Log robocopy output
+        if (!string.IsNullOrEmpty(output))
+        {
+            foreach (var line in output.Split(Environment.NewLine, StringSplitOptions.RemoveEmptyEntries))
+            {
+                Log(LogLevel.Debug, "Executor", $"Robocopy: {line}", step.AppId, step.Id);
+            }
+        }
 
         // Robocopy exit codes: 0-7 are success (various levels), 8+ are errors
         if (step.ExitCode >= 8)
@@ -287,7 +295,7 @@ public class ExecutorAgent
             throw new InvalidOperationException($"Robocopy failed with exit code {step.ExitCode}: {error}");
         }
 
-        Log(LogLevel.Info, "Executor", $"Robocopy completed with exit code {step.ExitCode}, log: {logFile}", step.AppId, step.Id);
+        Log(LogLevel.Info, "Executor", $"Robocopy completed with exit code {step.ExitCode}", step.AppId, step.Id);
     }
 
     private async Task ExecuteVerifyFiles(MigrationStep step)
