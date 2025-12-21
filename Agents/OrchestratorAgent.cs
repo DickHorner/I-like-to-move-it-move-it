@@ -19,7 +19,6 @@ public class OrchestratorAgent
     private readonly MonitorAgent _monitor;
     
     private readonly List<ExecutionLog> _logs = new();
-    private string? _currentRunFolder;
 
     public OrchestratorAgent(AppConfiguration? config = null)
     {
@@ -86,8 +85,10 @@ public class OrchestratorAgent
         
         var apps = _scanner.ScanSystem();
         
+        // Save to file
+        SaveInventory(apps, "inventory.json");
+        
         Log(LogLevel.Info, "Orchestrator", $"System scan complete. Found {apps.Count} applications");
-        SaveLogs("01_scanning.log");
         
         return apps;
     }
@@ -101,7 +102,9 @@ public class OrchestratorAgent
         
         var analyzedApps = _analyzer.AnalyzeApps(apps);
         
-        SaveLogs("02_analysis.log");
+        // Save to file
+        SaveInventory(analyzedApps, "inventory_scored.json");
+        
         Log(LogLevel.Info, "Orchestrator", "Analysis complete");
         
         return analyzedApps;
@@ -115,7 +118,9 @@ public class OrchestratorAgent
         Log(LogLevel.Info, "Orchestrator", $"Creating migration plan for {apps.Count} applications (DryRun: {isDryRun})");
         
         var plan = _planner.CreatePlan(apps, isDryRun);
-        SaveLogs("03_plan.log");
+        
+        // Save to file
+        SavePlan(plan, "plan.json");
         
         Log(LogLevel.Info, "Orchestrator", $"Migration plan created with {plan.Steps.Count} steps");
         
@@ -134,6 +139,9 @@ public class OrchestratorAgent
         try
         {
             result = await _executor.ExecutePlan(plan, progress);
+            
+            // Save execution report
+            SaveExecutionReport(result, plan, "execution_report.json");
             
             if (!result.Success.GetValueOrDefault())
             {
@@ -179,9 +187,6 @@ public class OrchestratorAgent
                 EndTime = DateTime.Now
             };
         }
-        "04_execution.log"
-        // Save all logs to file
-        SaveLogs();
         
         return result;
     }
@@ -332,42 +337,29 @@ public class OrchestratorAgent
             Log(LogLevel.Error, "Orchestrator", $"Error saving execution report: {ex.Message}", exception: ex.ToString());
         }
     }
-.log file (human-readable format)
+
+    /// <summary>
+    /// Saves logs to JSONL file
     /// </summary>
     public void SaveLogs(string? filename = null)
     {
         try
         {
             var baseLogDir = GetLogDirectory();
+            var runFolder = Path.Combine(baseLogDir, $"run_{DateTime.Now:yyyyMMdd_HHmmss}");
             
-            // Create run folder only once on first call
-            if (_currentRunFolder == null)
-            {
-                _currentRunFolder = Path.Combine(baseLogDir, $"run_{DateTime.Now:yyyyMMdd_HHmmss}");
-                if (!Directory.Exists(_currentRunFolder))
-                    Directory.CreateDirectory(_currentRunFolder);
-            }
+            if (!Directory.Exists(runFolder))
+                Directory.CreateDirectory(runFolder);
             
-            var logFile = filename ?? "migration.log";
-            var filePath = Path.Combine(_currentRunFolder, logFile);
+            var logFile = filename ?? "migration.jsonl";
+            var filePath = Path.Combine(runFolder, logFile);
             
             var logs = GetAllLogs();
             
-            // Format logs as human-readable text
-            var sb = new System.Text.StringBuilder();
+            using var writer = new StreamWriter(filePath);
             foreach (var log in logs)
             {
-                var timestamp = log.Timestamp.ToString("yyyy-MM-dd HH:mm:ss.fff");
-                var levelStr = log.Level.ToString().ToUpper().PadRight(5);
-                var category = log.Category.PadRight(15);
-                sb.AppendLine($"[{timestamp}] {levelStr} [{category}] {log.Message}");
-                
-                if (!string.IsNullOrEmpty(log.Exception))
-                    sb.AppendLine($"  EXCEPTION: {log.Exception}");
-            }
-            
-            // Append to file (don't overwrite)
-            File.AppendAllText(filePath, sb.ToString());   var json = JsonSerializer.Serialize(log);
+                var json = JsonSerializer.Serialize(log);
                 writer.WriteLine(json);
             }
             

@@ -16,8 +16,6 @@ public partial class MainForm : Form
     private WizardStep _currentStep = WizardStep.Welcome;
     private DataGridView? _selectionGrid;
     private EventHandler? _currentNextHandler;
-    private CancellationTokenSource? _monitoringCts;
-    private ExecutionResult? _lastExecutionResult;
 
     // UI Controls
     private Panel pnlContent = new();
@@ -121,7 +119,6 @@ public partial class MainForm : Form
         // Content panel - Add SECOND so it fills remaining space
         pnlContent.Dock = DockStyle.Fill;
         pnlContent.Padding = new Padding(20);
-        pnlContent.AutoScroll = true;
         Controls.Add(pnlContent);
 
         var buttonsLayout = new TableLayoutPanel
@@ -207,9 +204,6 @@ public partial class MainForm : Form
                 ShowExecution();
                 break;
             case WizardStep.Execution:
-                ShowCheckout();
-                break;
-            case WizardStep.Checkout:
                 ShowMonitoring();
                 break;
             case WizardStep.Monitoring:
@@ -264,11 +258,11 @@ public partial class MainForm : Form
         ClearContent();
         var layout = CreateStandardLayout(includeFooter: false);
 
-        layout.RowCount = 3;
-        layout.RowStyles.Clear();
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // Title
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // Warning panel with textbox
-        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // Checkboxes container
+        layout.RowCount = 4;
+        layout.RowStyles[0] = new RowStyle(SizeType.AutoSize);     // Title
+        layout.RowStyles[1] = new RowStyle(SizeType.Percent, 100); // Warning panel - fill available space
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // Verbose logging checkbox
+        layout.RowStyles.Add(new RowStyle(SizeType.AutoSize));     // Backup checkbox
 
         var lblTitle = new Label
         {
@@ -301,7 +295,7 @@ public partial class MainForm : Form
         var txtInfo = CreateReadOnlyMultiline();
         txtInfo.Dock = DockStyle.None;
         txtInfo.Width = 700;
-        txtInfo.Height = 150;
+        txtInfo.Height = 200;
         txtInfo.Margin = new Padding(0, 0, 0, 10);
         txtInfo.Text = @"Dieses Tool verschiebt installierte Programme von C:\ nach D:\ unter Verwendung von Junctions (symbolischen Links).
 
@@ -332,18 +326,11 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
 
         layout.Controls.Add(warningPanel, 0, 1);
 
-        var checkboxPanel = new FlowLayoutPanel
-        {
-            FlowDirection = FlowDirection.TopDown,
-            AutoSize = true,
-            AutoSizeMode = AutoSizeMode.GrowAndShrink,
-            Margin = new Padding(0, 10, 0, 0)
-        };
-
         var chkVerboseLogging = new CheckBox
         {
             Text = "Optionale Detail-Logs für Debugging aktivieren",
             AutoSize = true,
+            Margin = new Padding(0, 10, 0, 0),
             Checked = LoggingOptions.EnableDebugLogs
         };
         chkVerboseLogging.CheckedChanged += (s, e) =>
@@ -353,7 +340,7 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
                 ? "Detail-Logging aktiviert. Debug-Informationen werden gesammelt."
                 : "Detail-Logging deaktiviert.";
         };
-        checkboxPanel.Controls.Add(chkVerboseLogging);
+        layout.Controls.Add(chkVerboseLogging, 0, 2);
 
         var chkBackup = new CheckBox
         {
@@ -363,9 +350,7 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
             Margin = new Padding(0, 10, 0, 0)
         };
         chkBackup.CheckedChanged += (s, e) => btnNext.Enabled = chkBackup.Checked;
-        checkboxPanel.Controls.Add(chkBackup);
-
-        layout.Controls.Add(checkboxPanel, 0, 2);
+        layout.Controls.Add(chkBackup, 0, 3);
 
         btnNext.Enabled = false;
         btnBack.Enabled = false;
@@ -874,7 +859,9 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
                     txtLog.SelectionStart = txtLog.Text.Length;
                     txtLog.ScrollToCaret();
                 });
-            _lastExecutionResult = result;
+            });
+
+            var result = await _orchestrator.ExecuteMigration(_currentPlan, progress);
 
             Invoke(() =>
             {
@@ -892,7 +879,6 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
                     lblStatus.Text = $"Migration erfolgreich abgeschlossen!";
                     MessageBox.Show($"Migration erfolgreich!\n\n{result.SuccessfulSteps.Count} Schritte abgeschlossen.\n\nDauer: {result.Duration:mm\\:ss}",
                         "Erfolg", MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    ResetNextButtonHandlers();
                 }
                 else
                 {
@@ -902,98 +888,9 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
                         : "";
                     MessageBox.Show($"{result.Message}\n\nErfolgreich: {result.SuccessfulSteps.Count}\nFehlgeschlagen: {result.FailedSteps.Count}\nDauer: {result.Duration:mm\\:ss}{failureDetail}",
                         "Migration abgeschlossen (mit Fehlern)", MessageBoxButtons.OK, MessageBoxIcon.Warning);
-                    ResetNextButtonHandlers(s => $"• {s.AppName}: {s.Description} - {s.ErrorMessage}"))}"
-                        : "";
-                    MessageBox.Show($"{result.Message}\n\nErfolgreich: {result.SuccessfulSteps.Count}\nFehlgeschlagen: {result.FailedSteps.Count}\nDauer: {result.Duration:mm\\:ss}{failureDetail}",
-                        "Migration abgeschlossen (mit Fehlern)", MessageBoxButtons.OK, MessageBoxIcon.Warning);
                 }
             });
         });
-    }
-
-    private void ShowCheckout()
-    {
-        _currentStep = WizardStep.Checkout;
-        ClearContent();
-        btnNext.Text = "Weiter";
-        btnBack.Enabled = true;
-        var layout = CreateStandardLayout();
-
-        var lblTitle = new Label
-        {
-            Text = "Migrationsergebnis",
-            Font = new Font(Font.FontFamily, 16, FontStyle.Bold),
-            AutoSize = true,
-            Margin = new Padding(0, 0, 0, 10)
-        };
-        layout.Controls.Add(lblTitle, 0, 0);
-
-        var txtResults = CreateReadOnlyMultiline();
-        layout.Controls.Add(txtResults, 0, 1);
-
-        if (_lastExecutionResult != null)
-        {
-            var sb = new System.Text.StringBuilder();
-            var result = _lastExecutionResult;
-            
-            sb.AppendLine("═══════════════════════════════════════════════════════════\n");
-            sb.AppendLine($"STATUS: {(result.Success.GetValueOrDefault() ? "✓ ERFOLGREICH" : "⚠ MIT FEHLERN")}\n");
-            sb.AppendLine($"Dauer: {result.Duration:mm\\:ss}\n");
-            sb.AppendLine("───────────────────────────────────────────────────────────\n");
-            
-            sb.AppendLine($"ERGEBNISSE:");
-            sb.AppendLine($"  ✓ Erfolgreich:   {result.SuccessfulSteps.Count} Schritte");
-            sb.AppendLine($"  ✗ Fehlgeschlagen: {result.FailedSteps.Count} Schritte");
-            sb.AppendLine();
-            
-            if (result.FailedSteps.Any())
-            {
-                sb.AppendLine("FEHLERHAFTE MIGRATIONEN:");
-                foreach (var step in result.FailedSteps.Take(15))
-                {
-                    sb.AppendLine($"\n  • {step.AppName}");
-                    sb.AppendLine($"    Schritt: {step.Description}");
-                    sb.AppendLine($"    Fehler: {step.ErrorMessage}");
-                }
-                if (result.FailedSteps.Count > 15)
-                    sb.AppendLine($"\n  ... und {result.FailedSteps.Count - 15} weitere");
-                sb.AppendLine();
-            }
-            
-            if (result.SuccessfulSteps.Any())
-            {
-                sb.AppendLine("ERFOLGREICH MIGRIERTE PROGRAMME:");
-                var migratedApps = result.SuccessfulSteps
-                    .Select(s => s.AppName)
-                    .Distinct()
-                    .ToList();
-                
-                foreach (var app in migratedApps.Take(20))
-                {
-                    sb.AppendLine($"  ✓ {app}");
-                }
-                if (migratedApps.Count > 20)
-                    sb.AppendLine($"\n  ... und {migratedApps.Count - 20} weitere");
-                sb.AppendLine();
-            }
-            
-            sb.AppendLine("───────────────────────────────────────────────────────────");
-            sb.AppendLine($"\nNächster Schritt: Überprüfung der Anwendungen");
-            sb.AppendLine("Klicken Sie auf 'Weiter' um die Anwendungen zu überprüfen.");
-            
-            txtResults.Text = sb.ToString();
-            lblStatus.Text = result.Success.GetValueOrDefault() 
-                ? "Migration abgeschlossen - Details oben"
-                : $"Migration mit {result.FailedSteps.Count} Fehler(n) abgeschlossen";
-            
-            btnNext.Enabled = true;
-        }
-        else
-        {
-            txtResults.Text = "Keine Migrationsergebnisse verfügbar.";
-            lblStatus.Text = "Fehler: Keine Ergebnisse";
-            btnNext.Enabled = false;
-        }
     }
 
     private void ShowMonitoring()
@@ -1021,8 +918,6 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
         progressBar.Style = ProgressBarStyle.Marquee;
         lblStatus.Text = "Überprüfe migrierte Programme...";
 
-        _monitoringCts = new CancellationTokenSource();
-        
         Task.Run(async () =>
         {
             var result = await _orchestrator.MonitorApps(_selectedApps);
@@ -1058,7 +953,7 @@ Durch Klicken auf 'Weiter' bestätigen Sie, dass Sie:
                 lblStatus.Text = $"Überwachung abgeschlossen. Status: {result.OverallStatus}";
                 btnNext.Enabled = true;
             });
-        }, _monitoringCts.Token);
+        });
     }
 
     private void ShowComplete()
@@ -1129,13 +1024,7 @@ Vielen Dank für die Nutzung von ProgramMover!";
             Margin = new Padding(0, 10, 0, 0)
         };
         footer.Controls.Add(btnCleanup);
-        layout.Controls.Add(footer, 0,
-        {
-            // Cancel monitoring task if it's still running
-            _monitoringCts?.Cancel();
-            _monitoringCts?.Dispose();
-            Close();
-        }
+        layout.Controls.Add(footer, 0, 2);
 
         SetNextButtonHandler((s, e) => Close());
 
@@ -1152,7 +1041,6 @@ Vielen Dank für die Nutzung von ProgramMover!";
         Plan,
         DryRun,
         Execution,
-        Checkout,
         Monitoring,
         Complete
     }
