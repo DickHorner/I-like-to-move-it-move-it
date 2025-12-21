@@ -47,7 +47,9 @@ public class RollbackAgent
                     // Check if the path is a reparse point (junction, symbolic link, or mount point)
                     // Note: File.GetAttributes works for both files and directories.
                     // This treats any directory reparse point as a "junction" for rollback purposes,
-                    // which may also include symbolic links or mount points, not only traditional junctions.
+                    // which may include symbolic links, mount points, or traditional junctions.
+                    // For this application's purpose (detecting migrated directories), all reparse point
+                    // types indicate a successfully migrated installation and are considered "healthy".
                     var attributes = File.GetAttributes(originalPath);
                     var isJunction = (attributes & FileAttributes.ReparsePoint) == FileAttributes.ReparsePoint;
 
