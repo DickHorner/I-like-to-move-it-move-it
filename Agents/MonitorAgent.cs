@@ -62,7 +62,7 @@ public class MonitorAgent
                     appStatus.Status = MonitorStatus.Error;
 
                 // Check process start capability
-                var processStatus = await CheckProcessStart(app);
+                var processStatus = CheckProcessStart(app);
                 appStatus.CanStartProcess = processStatus;
 
                 if (!processStatus && appStatus.Status == MonitorStatus.OK)
@@ -177,7 +177,7 @@ public class MonitorAgent
     /// <summary>
     /// Checks if we can find and potentially start a process from the app location
     /// </summary>
-    private async Task<bool> CheckProcessStart(AppEntry app)
+    private bool CheckProcessStart(AppEntry app)
     {
         if (string.IsNullOrEmpty(app.InstallLocation))
             return false;
